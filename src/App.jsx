@@ -952,20 +952,26 @@ Max Asset: ${formatMoney(maxMoney, language)}
 🆚 Try now 👉
 ${shareUrl}`
 
-  if (navigator.share) {
+try {
+  // 모바일에서만 공유창
+  if (navigator.share && /Mobi|Android|iPhone/i.test(navigator.userAgent)) {
     await navigator.share({
-      title: "Horse Betting Simulator",
+      title: "Duckpick",
       text: message,
     })
     return
   }
+} catch (e) {
+  // 공유 취소시 무시
+}
 
-  await navigator.clipboard.writeText(message)
-  alert(
-    language === "ko"
-      ? "공유 문구가 복사되었습니다.\n카카오톡 등에 붙여넣기 하세요."
-      : "Copied!\nPaste it to share."
-  )
+// 웹/PC fallback
+await navigator.clipboard.writeText(message)
+alert(
+  language === "ko"
+    ? "복사되었습니다.\n카카오톡 등에 붙여넣기 하세요."
+    : "Copied!\nPaste it to share."
+)
 }
 
   const saveShareImage = async () => {
@@ -2307,7 +2313,7 @@ const styles = {
   },
 
   adBox: {
-    marginTop: "50px",
+    marginTop: "30px",
     height: "100px",
     background: "#222",
     borderRadius: "10px",
