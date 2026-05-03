@@ -10,6 +10,27 @@ const ACTIVE_RACE_KEY = "horse_racing_active_race_v1"
 const LAST_SCREEN_KEY = "horse_racing_last_screen_v1"
 const F5_LOSE_RESULT_KEY = "horse_racing_f5_lose_result_v1"
 const COIN_ICON = "/img/tier/duckpick_coin.png"
+
+const SHARE_MESSAGES_KO = [
+  "오늘 운 미쳤다",
+  "이 정도면 고수 인정?",
+  "다음 판도 간다",
+  "이거 실화냐ㅋㅋ",
+  "연승 가즈아",
+  "오늘은 되는 날",
+  "끝까지 간다",
+]
+
+const SHARE_MESSAGES_EN = [
+  "Insane luck today",
+  "Pro level?",
+  "Let’s run it again",
+  "Is this real lol",
+  "Win streak going",
+  "Today is my day",
+  "Going all the way",
+]
+
 function getDefaultLanguage() {
   const savedSetting = loadSetting()
 
@@ -243,75 +264,55 @@ function saveCurrentCards(cards) {
   localStorage.setItem(CURRENT_CARDS_KEY, JSON.stringify(cards))
 }
 function getTier(maxMoney) {
-  if (maxMoney >= 100000000000) {
-    return { name: "Legend 3", image: "Legend3.png", color: "#ff4df0" }
+  const tiers = [
+    { min: 0, name: "Bronze 1", image: "bronze1.png", color: "#b87333" },
+    { min: 5_000_000, name: "Bronze 2", image: "bronze2.png", color: "#b87333" },
+    { min: 10_000_000, name: "Bronze 3", image: "bronze3.png", color: "#b87333" },
+
+    { min: 20_000_000, name: "Silver 1", image: "silver1.png", color: "#bfc7d5" },
+    { min: 40_000_000, name: "Silver 2", image: "silver2.png", color: "#bfc7d5" },
+    { min: 70_000_000, name: "Silver 3", image: "silver3.png", color: "#bfc7d5" },
+
+    { min: 100_000_000, name: "Gold 1", image: "gold1.png", color: "#f6c343" },
+    { min: 200_000_000, name: "Gold 2", image: "gold2.png", color: "#f6c343" },
+    { min: 400_000_000, name: "Gold 3", image: "gold3.png", color: "#f6c343" },
+
+    { min: 700_000_000, name: "Platinum 1", image: "platinum1.png", color: "#d6f3ff" },
+    { min: 1_000_000_000, name: "Platinum 2", image: "platinum2.png", color: "#d6f3ff" },
+    { min: 1_500_000_000, name: "Platinum 3", image: "platinum3.png", color: "#d6f3ff" },
+
+    { min: 2_000_000_000, name: "Diamond 1", image: "diamond1.png", color: "#5ecbff" },
+    { min: 3_000_000_000, name: "Diamond 2", image: "diamond2.png", color: "#5ecbff" },
+    { min: 5_000_000_000, name: "Diamond 3", image: "diamond3.png", color: "#5ecbff" },
+
+    { min: 8_000_000_000, name: "Epic 1", image: "epic1.png", color: "#b84dff" },
+    { min: 12_000_000_000, name: "Epic 2", image: "epic2.png", color: "#b84dff" },
+    { min: 18_000_000_000, name: "Epic 3", image: "epic3.png", color: "#b84dff" },
+
+    { min: 25_000_000_000, name: "Legend 1", image: "legend1.png", color: "#ff4df0" },
+    { min: 40_000_000_000, name: "Legend 2", image: "legend2.png", color: "#ff4df0" },
+    { min: 60_000_000_000, name: "Legend 3", image: "legend3.png", color: "#ff4df0" },
+
+    { min: 100_000_000_000, name: "Mythic 1", image: "mythic1.png", color: "#ff3b3b" },
+    { min: 150_000_000_000, name: "Mythic 2", image: "mythic2.png", color: "#ff3b3b" },
+    { min: 250_000_000_000, name: "Mythic 3", image: "mythic3.png", color: "#ff3b3b" },
+
+    { min: 400_000_000_000, name: "Transcendent 1", image: "transcendent1.png", color: "#38ffd6" },
+    { min: 700_000_000_000, name: "Transcendent 2", image: "transcendent2.png", color: "#38ffd6" },
+    { min: 1_000_000_000_000, name: "Transcendent 3", image: "transcendent3.png", color: "#38ffd6" },
+
+    { min: 2_000_000_000_000, name: "Ultimate 1", image: "ultimate1.png", color: "#ffffff" },
+    { min: 5_000_000_000_000, name: "Ultimate 2", image: "ultimate2.png", color: "#ffffff" },
+    { min: 10_000_000_000_000, name: "Ultimate 3", image: "ultimate3.png", color: "#ffffff" },
+  ]
+
+  for (let i = tiers.length - 1; i >= 0; i--) {
+    if (maxMoney >= tiers[i].min) {
+      return tiers[i]
+    }
   }
 
-  if (maxMoney >= 50000000000) {
-    return { name: "Legend 2", image: "Legend2.png", color: "#ff4df0" }
-  }
-
-  if (maxMoney >= 10000000000) {
-    return { name: "Legend 1", image: "Legend1.png", color: "#ff4df0" }
-  }
-
-  if (maxMoney >= 5000000000) {
-    return { name: "Epic 3", image: "Epic3.png", color: "#b84dff" }
-  }
-
-  if (maxMoney >= 3000000000) {
-    return { name: "Epic 2", image: "Epic2.png", color: "#b84dff" }
-  }
-
-  if (maxMoney >= 2000000000) {
-    return { name: "Epic 1", image: "Epic1.png", color: "#b84dff" }
-  }
-
-  if (maxMoney >= 1000000000) {
-    return { name: "Platinum 3", image: "Platinum3.png", color: "#d6f3ff" }
-  }
-
-  if (maxMoney >= 500000000) {
-    return { name: "Platinum 2", image: "Platinum2.png", color: "#d6f3ff" }
-  }
-
-  if (maxMoney >= 300000000) {
-    return { name: "Platinum 1", image: "Platinum1.png", color: "#d6f3ff" }
-  }
-
-  if (maxMoney >= 100000000) {
-    return { name: "Gold 3", image: "Gold3.png", color: "#f6c343" }
-  }
-
-  if (maxMoney >= 80000000) {
-    return { name: "Gold 2", image: "Gold2.png", color: "#f6c343" }
-  }
-
-  if (maxMoney >= 50000000) {
-    return { name: "Gold 1", image: "Gold1.png", color: "#f6c343" }
-  }
-
-  if (maxMoney >= 40000000) {
-    return { name: "Silver 3", image: "Silver3.png", color: "#bfc7d5" }
-  }
-
-  if (maxMoney >= 25000000) {
-    return { name: "Silver 2", image: "Silver2.png", color: "#bfc7d5" }
-  }
-
-  if (maxMoney >= 15000000) {
-    return { name: "Silver 1", image: "Silver1.png", color: "#bfc7d5" }
-  }
-
-  if (maxMoney >= 10000000) {
-    return { name: "Bronze ★", image: "Bronze3.png", color: "#b87333" }
-  }
-
-  if (maxMoney >= 5000000) {
-    return { name: "Bronze 2", image: "Bronze2.png", color: "#b87333" }
-  }
-
-  return { name: "Bronze 1", image: "Bronze1.png", color: "#b87333" }
+  return tiers[0]
 }
 
 const TEXT = {
@@ -551,6 +552,7 @@ const [roundWinner, setRoundWinner] = useState(null)
   const [countdown, setCountdown] = useState(null)
   const [result, setResult] = useState(null)
   const [isNewRecord, setIsNewRecord] = useState(false)
+  const [tierUpInfo, setTierUpInfo] = useState(null)
   const [reviveUsed, setReviveUsed] = useState(
     savedData?.reviveUsed || false
   )
@@ -943,6 +945,20 @@ const [roundWinner, setRoundWinner] = useState(null)
     const nextMaxMoney = Math.max(maxMoney, nextMoney)
     const nextMaxStreak = Math.max(maxWinStreak, nextCurrentStreak)
     const isRecord = nextMoney > maxMoney
+
+    const prevTier = getTier(maxMoney)
+const nextTier = getTier(nextMaxMoney)
+
+const isTierUp = prevTier.name !== nextTier.name
+
+if (isTierUp) {
+  setTimeout(() => {
+    setTierUpInfo({
+      prevTier,
+      nextTier,
+    })
+  }, 500)
+}
   
     setIsNewRecord(isRecord)
   
@@ -967,21 +983,25 @@ const [roundWinner, setRoundWinner] = useState(null)
     setScreen("result")
   }
 
+  const getRandomShareMessage = () => {
+    const list = language === "ko" ? SHARE_MESSAGES_KO : SHARE_MESSAGES_EN
+    return list[Math.floor(Math.random() * list.length)]
+  }
+
 const shareTextResult = async () => {
   const shareUrl = window.location.origin
 
+  const shareMessage = getRandomShareMessage()
   const message = language === "ko"
   ? `티어: ${tier.name}
 닉네임: ${nickname}
 최대 자산: ${formatMoney(maxMoney, language)}
-
-🆚 지금 도전해보기 👉
+${shareMessage} 👉
 ${shareUrl}`
   : `Tier: ${tier.name}
 Nickname: ${nickname}
 Max Asset: ${formatMoney(maxMoney, language)}
-
-🆚 Try now 👉
+${shareMessage} 👉
 ${shareUrl}`
 
 try {
@@ -1069,6 +1089,27 @@ alert(
     return `/img/tier/${tier.image}`
   }
   const getTierEffect = (tier) => {
+    if (tier.name.includes("Ultimate")) {
+      return {
+        border: "2px solid #ffffff",
+        boxShadow: "0 0 18px rgba(255,255,255,0.9)",
+      }
+    }
+  
+    if (tier.name.includes("Transcendent")) {
+      return {
+        border: "2px solid #38ffd6",
+        boxShadow: "0 0 16px rgba(56,255,214,0.85)",
+      }
+    }
+  
+    if (tier.name.includes("Mythic")) {
+      return {
+        border: "2px solid #ff3b3b",
+        boxShadow: "0 0 16px rgba(255,59,59,0.85)",
+      }
+    }
+  
     if (tier.name.includes("Legend")) {
       return {
         border: "2px solid #ff4df0",
@@ -1080,6 +1121,13 @@ alert(
       return {
         border: "2px solid #b84dff",
         boxShadow: "0 0 12px rgba(184,77,255,0.75)",
+      }
+    }
+  
+    if (tier.name.includes("Diamond")) {
+      return {
+        border: "2px solid #5ecbff",
+        boxShadow: "0 0 12px rgba(94,203,255,0.8)",
       }
     }
   
@@ -1927,6 +1975,66 @@ style={{
   
 )}
 
+{tierUpInfo && (
+  <div style={styles.popupDim}>
+    <div style={styles.tierUpBox}>
+      <div style={styles.tierUpTitle}>
+        {language === "ko" ? "🎉 승급!" : "🎉 Tier Up!"}
+      </div>
+
+      <div style={styles.tierUpImages}>
+        <div style={styles.tierUpItem}>
+          <img
+            src={getTierImage(tierUpInfo.prevTier)}
+            style={styles.tierUpIcon}
+          />
+          <div>{tierUpInfo.prevTier.name}</div>
+        </div>
+
+        <div style={styles.tierUpArrow}>→</div>
+
+        <div style={styles.tierUpItem}>
+          <img
+            src={getTierImage(tierUpInfo.nextTier)}
+            style={styles.tierUpIcon}
+          />
+          <div style={{ color: tierUpInfo.nextTier.color }}>
+            {tierUpInfo.nextTier.name}
+          </div>
+        </div>
+      </div>
+
+      <div style={styles.tierUpText}>
+        {language === "ko"
+          ? "최대 자산 신기록 달성!"
+          : "New max asset record achieved!"}
+      </div>
+
+      <button
+  style={styles.shareBtn}
+  onClick={() => {
+    playSound("click")
+    setTierUpInfo(null)
+    localStorage.setItem(LAST_SCREEN_KEY, "share")
+    setScreen("share")
+  }}
+>
+{t.share}
+</button>
+
+<button
+  style={styles.nextBtn}
+  onClick={() => {
+    playSound("click")
+    setTierUpInfo(null)
+  }}
+>
+{language === "ko" ? "확인" : "OK"}
+</button>
+    </div>
+  </div>
+)}
+
 {popup && (
   <div style={styles.popupDim}>
     <div style={styles.popupBox}>
@@ -2516,6 +2624,7 @@ const styles = {
   },
 
   shareBtn: {
+    marginBottom: "10px",
     width: "100%",
     padding: "14px",
     borderRadius: "10px",
@@ -2828,6 +2937,56 @@ margin: "0 auto",
     background: "#1a1a1a",
     color: "#f6c343",
     fontWeight: "bold",
+  },
+  tierUpBox: {
+    width: "320px",
+    padding: "22px",
+    borderRadius: "22px",
+    background: "linear-gradient(180deg, #202938 0%, #0d1118 100%)",
+    border: "2px solid #f6c343",
+    boxShadow: "0 0 24px rgba(246,195,67,0.65)",
+    textAlign: "center",
+    color: "#fff",
+  },
+  
+  tierUpTitle: {
+    fontSize: "28px",
+    fontWeight: "bold",
+    color: "#f6c343",
+    marginBottom: "18px",
+  },
+  
+  tierUpImages: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: "14px",
+    marginBottom: "16px",
+  },
+  
+  tierUpItem: {
+    width: "100px",
+    fontSize: "13px",
+    fontWeight: "bold",
+  },
+  
+  tierUpIcon: {
+    width: "72px",
+    height: "72px",
+    objectFit: "contain",
+    marginBottom: "6px",
+  },
+  
+  tierUpArrow: {
+    fontSize: "28px",
+    fontWeight: "bold",
+    color: "#f6c343",
+  },
+  
+  tierUpText: {
+    fontSize: "15px",
+    color: "#ddd",
+    marginBottom: "16px",
   },
 
 }
