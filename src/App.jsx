@@ -141,7 +141,7 @@ result.forEach((c) => {
 
   // ⭐ 4. 배당 계산 (차이 크게)
   result.forEach((c) => {
-    c.odds = Number((1.25 / Math.pow(c.winRate, 1.25)).toFixed(2))
+    c.odds = Number((0.75 / Math.pow(c.winRate, 1.35)).toFixed(2))
   })
 
   return result
@@ -352,6 +352,7 @@ rules: [
   "3. 패배하면 배팅한 가상 재화를 잃습니다.",
   "4. 자산이 10만원 미만이면 100만원으로 재시작됩니다.",
   "5. 본 게임은 실제 현금 거래가 없는 엔터테인먼트용 시뮬레이션입니다.",
+  "6. 결과창에서 기록을 친구와 공유할 수 있습니다.",
 ],
 speed: "속도",
 curve: "커브",
@@ -408,6 +409,7 @@ rules: [
   "3. Lose the race and your virtual bet is lost.",
   "4. If assets drop below 100,000, restart with 1,000,000.",
   "5. This is an entertainment simulation with no real-money transactions.",
+  "6. You can share your record with friends from the result screen.",
 ],
 speed: "Speed",
 curve: "Curve",
@@ -1575,7 +1577,13 @@ if (countdown) {
 }
 
         return (
-          <div key={card.id} style={styles.trackLane}>
+          <div
+  key={card.id}
+  style={{
+    ...styles.trackLane,
+    transform: index === 1 ? "translateY(2px)" : "none",
+  }}
+>
 
 <div
 style={{
