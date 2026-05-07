@@ -2023,7 +2023,7 @@ const styles = {
   },
   resultWrap: {
     textAlign: "center",
-    paddingTop: "18px",
+    paddingTop: "0px",
     minHeight: "720px",
   },
   resultCardWrap: {
@@ -2318,6 +2318,7 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    marginTop: "-6px",
     marginBottom: "20px",
   },
   
