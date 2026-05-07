@@ -1694,7 +1694,7 @@ style={{
 const styles = {
   memorizeWrap: {
     textAlign: "center",
-    marginTop: "18px",
+    marginTop: "px",
   },
   
   memorizeTimer: {
@@ -2287,7 +2287,7 @@ const styles = {
   },
   questionWrap: {
     textAlign: "center",
-    marginTop: "18px",
+    marginTop: "0px",
   },
   
   questionTimer: {
