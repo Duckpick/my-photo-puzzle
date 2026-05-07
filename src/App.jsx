@@ -1,728 +1,873 @@
 import { useEffect, useRef, useState } from "react"
-import html2canvas from "html2canvas"
 
-const START_MONEY = 1000000
-const RACE_DURATION = 5000
-const STORAGE_KEY = "horse_racing_save_v1"
-const SETTING_KEY = "horse_racing_setting_v1"
-const CURRENT_CARDS_KEY = "horse_racing_current_cards_v1"
-const ACTIVE_RACE_KEY = "horse_racing_active_race_v1"
-const LAST_SCREEN_KEY = "horse_racing_last_screen_v1"
-const F5_LOSE_RESULT_KEY = "horse_racing_f5_lose_result_v1"
-const COIN_ICON = "/img/tier/duckpick_coin.png"
+const STORAGE_KEY = "duckpick_template_save_v1"
+const SETTING_KEY = "duckpick_template_setting_v1"
+const LAST_SCREEN_KEY = "duckpick_template_last_screen_v1"
 
-const SHARE_MESSAGES_KO = [
-  "오늘 운 미쳤다",
-  "이 정도면 고수 인정?",
-  "다음 판도 간다",
-  "이거 실화냐ㅋㅋ",
-  "연승 가즈아",
-  "오늘은 되는 날",
-  "끝까지 간다",
-]
+const GAME_TITLE = "3 Second Memory Trap"
 
-const SHARE_MESSAGES_EN = [
-  "Insane luck today",
-  "Pro level?",
-  "Let’s run it again",
-  "Is this real lol",
-  "Win streak going",
-  "Today is my day",
-  "Going all the way",
-]
+const GAME_CONFIG = {
+  maxWidth: 390,
+  baseHeight: 844,
+  startStage: 1,
+  memorizeSeconds: 3,
+  questionSeconds: 3,
+  hideDelayMs: 300,
+  minCards: 2,
+  maxCards: 5,
+  cardStageMap: [
+    { max: 3, count: 2 },
+    { max: 7, count: 3 },
+    { max: 12, count: 4 },
+    { max: 999, count: 5 },
+  ],
+}
+
+const CONTACT_EMAIL = "gameduckman@gmail.com"
+
+function loadJson(key, fallback = null) {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function saveJson(key, data) {
+  localStorage.setItem(key, JSON.stringify(data))
+}
 
 function getDefaultLanguage() {
-  const savedSetting = loadSetting()
-
-  if (savedSetting?.language) {
-    return savedSetting.language
-  }
-
+  const saved = loadJson(SETTING_KEY)
+  if (saved?.language) return saved.language
   return navigator.language.startsWith("ko") ? "ko" : "en"
 }
 
-const HORSES = [
-  { id: 1, nameKo: "서아", nameEn: "Seoa", image: "/img/horses/horse1.png" },
-  { id: 2, nameKo: "하린", nameEn: "Harin", image: "/img/horses/horse2.png" },
-  { id: 3, nameKo: "유나", nameEn: "Yuna", image: "/img/horses/horse3.png" },
-  { id: 4, nameKo: "태윤", nameEn: "Taeyun", image: "/img/horses/horse4.png" },
-  { id: 5, nameKo: "아린", nameEn: "Arin", image: "/img/horses/horse5.png" },
-  { id: 6, nameKo: "준서", nameEn: "Junseo", image: "/img/horses/horse6.png" },
-  { id: 7, nameKo: "세린", nameEn: "Serin", image: "/img/horses/horse7.png" },
-  { id: 8, nameKo: "다은", nameEn: "Daeun", image: "/img/horses/horse8.png" },
-  { id: 9, nameKo: "현우", nameEn: "Hyunwoo", image: "/img/horses/horse9.png" },
-  { id: 10, nameKo: "소희", nameEn: "Sohee", image: "/img/horses/horse10.png" },
-  { id: 11, nameKo: "지안", nameEn: "Jian", image: "/img/horses/horse11.png" },
-  { id: 12, nameKo: "유리", nameEn: "Yuri", image: "/img/horses/horse12.png" },
-  { id: 13, nameKo: "지유", nameEn: "Jiyu", image: "/img/horses/horse13.png" },
-  { id: 14, nameKo: "수아", nameEn: "Sua", image: "/img/horses/horse14.png" },
-  { id: 15, nameKo: "민지", nameEn: "Minji", image: "/img/horses/horse15.png" },
-  { id: 16, nameKo: "예린", nameEn: "Yerin", image: "/img/horses/horse16.png" },
-  { id: 17, nameKo: "레아", nameEn: "Rea", image: "/img/horses/horse17.png" },
-  { id: 18, nameKo: "지은", nameEn: "Jieun", image: "/img/horses/horse18.png" },
-  { id: 19, nameKo: "세아", nameEn: "Seah", image: "/img/horses/horse19.png" },
-  { id: 20, nameKo: "시아", nameEn: "Sia", image: "/img/horses/horse20.png" },
-]
-function formatMoney(value, language = "ko") {
-  const v = Math.floor(value)
 
-  if (language === "en") {
-    if (v >= 1e12) return (v / 1e12).toFixed(1) + "T"
-    if (v >= 1e9) return (v / 1e9).toFixed(1) + "B"
-    if (v >= 1e6) return (v / 1e6).toFixed(1) + "M"
-    if (v >= 1e3) return (v / 1e3).toFixed(1) + "K"
-    return v.toLocaleString("en-US")
-  }
-
-  const EOK = 100_000_000
-  const JO = 1_000_000_000_000
-  const GYEONG = 10_000_000_000_000_000
-
-  let result = ""
-
-  if (v >= GYEONG) {
-    const gyeong = Math.floor(v / GYEONG)
-    result += `${gyeong.toLocaleString()}경 `
-  }
-
-  if (v >= JO) {
-    const jo = Math.floor((v % GYEONG) / JO)
-    if (jo > 0) {
-      result += `${jo.toLocaleString()}조 `
-    }
-  }
-
-  if (v >= EOK) {
-    const eok = Math.floor((v % JO) / EOK)
-    if (eok > 0) {
-      result += `${eok.toLocaleString()}억 `
-    }
-  }
-
-  const rest = v % EOK
-
-  if (rest > 0 || result === "") {
-    result += rest.toLocaleString("ko-KR")
-  }
-
-  return result.trim()
+const COLORS = ["red", "blue", "yellow", "green", "purple"]
+const COLOR_HEX = {
+  red: "#E74C3C",
+  blue: "#3498DB",
+  yellow: "#D6A900",
+  green: "#2ECC71",
+  purple: "#8E44AD",
 }
-function makeStars(value) {
-  return "★".repeat(value) + "☆".repeat(5 - value)
-}
-
-function createRandomStatSet() {
-  const speed = Math.floor(Math.random() * 5) + 1
-
-  let maxCurveLuck = 15 - speed * 2
-  maxCurveLuck = Math.max(4, maxCurveLuck)
-
-  while (true) {
-    const curve = Math.floor(Math.random() * 5) + 1
-    const luck = Math.floor(Math.random() * 5) + 1
-
-    if (curve + luck <= maxCurveLuck) {
-      return { speed, curve, luck }
-    }
-  }
-}
-
-function generateCards() {
-  const shuffled = [...HORSES].sort(() => Math.random() - 0.5)
-  const selected = shuffled.slice(0, 2)
-
-  // ⭐ 1. 먼저 카드 생성
-  const result = selected.map((horse) => {
-    const stat = createRandomStatSet()
-
-    const power =
-      stat.speed * 0.5 +
-      stat.curve * 0.3 +
-      stat.luck * 0.2
-
-    return {
-      ...horse,
-      speed: stat.speed,
-      curve: stat.curve,
-      luck: stat.luck,
-      power,
-    }
-  })
-
-  // ⭐ 2. power 기반 승률 계산
-  const totalPower = result[0].power + result[1].power
-
-  result[0].winRate = result[0].power / totalPower
-  result[1].winRate = result[1].power / totalPower
-
-// ⭐ 3. 3라운드 기준 최종 승률 최대 약 75% 제한
-result.forEach((c) => {
-  c.winRate = Math.min(0.8, Math.max(0.2, c.winRate))
-})
-
-  // ⭐ 4. 배당 계산 (차이 크게)
-  result.forEach((c) => {
-    c.odds = Number((0.75 / Math.pow(c.winRate, 1.35)).toFixed(2))
-  })
-
-  return result
-}
-
-function pickWinner(cards) {
-  const random = Math.random()
-  let sum = 0
-
-  for (const card of cards) {
-    sum += card.winRate
-    if (random <= sum) {
-      return card
-    }
-  }
-
-  return cards[cards.length - 1]
-}
-
-const TRACKS = [
+const DIFFICULTY_CONFIG = [
   {
-    name: "verticalOval",
-    path: "M180 45 C255 45 315 105 315 180 C315 255 255 315 180 315 C105 315 45 255 45 180 C45 105 105 45 180 45 Z",
+    minStage: 1,
+    maxStage: 1,
+    cardCount: 2,
+    maxCategories: 1,
+    colorVariants: 1,
+    tutorial: "basic",
+    allowedQuestionTypes: ["number_count", "alphabet_count"],
+    tricks: { count: 0, pool: [] },
+  },
+  {
+    minStage: 2,
+    maxStage: 2,
+    cardCount: 3,
+    maxCategories: 1,
+    forceCategory: "number",
+    colorVariants: 1,
+    tutorial: "scale",
+    allowedQuestionTypes: ["number_max", "number_min"],
+    tricks: { count: 1, pool: ["scale"] },
+  },
+  {
+    minStage: 3,
+    maxStage: 3,
+    cardCount: 3,
+    maxCategories: 2,
+    colorVariants: 2,
+    tutorial: "color",
+    allowedQuestionTypes: ["color_count"],
+    tricks: { count: 1, pool: ["color"] },
+  },
+  {
+    minStage: 4,
+    maxStage: 4,
+    cardCount: 3,
+    maxCategories: 2,
+    colorVariants: 2,
+    tutorial: "zero",
+    allowedQuestionTypes: ["number_count", "alphabet_count"],
+    tricks: { count: 1, pool: ["zero"] },
+  },
+  {
+    minStage: 5,
+    maxStage: 9,
+    cardCount: 3,
+    maxCategories: 2,
+    colorVariants: 2,
+    allowedQuestionTypes: [
+      "color_count",
+      "category_count",
+      "number_max",
+      "number_min",
+      "odd_count",
+"even_count",
+    ],
+    tricks: {
+      count: 1,
+      pool: ["scale", "rotation", "zero", "color"],
+    },
+  },
+  {
+    minStage: 10,
+    maxStage: 19,
+    cardCount: 4,
+    maxCategories: 2,
+    colorVariants: 3,
+    allowedQuestionTypes: [
+      "color_count",
+      "category_count",
+      "number_max",
+      "number_min",
+      "odd_count",
+"even_count",
+    ],
+    tricks: {
+      count: 2,
+      pool: ["scale", "rotation", "zero", "color"],
+    },
+  },
+  {
+    minStage: 20,
+    maxStage: 29,
+    cardCount: 4,
+    maxCategories: 2,
+    colorVariants: 4,
+    allowedQuestionTypes: [
+      "color_count",
+      "category_count",
+      "number_max",
+      "number_min",
+      "odd_count",
+      "even_count",
+    ],
+    tricks: {
+      count: 3,
+      pool: ["scale", "rotation", "zero", "color"],
+    },
+  },
+  
+  {
+    minStage: 30,
+    maxStage: 49,
+    cardCount: 5,
+    maxCategories: 2,
+    colorVariants: 4,
+    allowedQuestionTypes: [
+      "color_count",
+      "category_count",
+      "number_max",
+      "number_min",
+      "odd_count",
+      "even_count",
+    ],
+    tricks: {
+      count: 3,
+      pool: ["scale", "rotation", "zero", "color"],
+    },
+  },
+  
+  {
+    minStage: 50,
+    maxStage: 999,
+    cardCount: 6,
+    maxCategories: 2,
+    colorVariants: 5,
+    allowedQuestionTypes: [
+      "color_count",
+      "category_count",
+      "number_max",
+      "number_min",
+      "odd_count",
+      "even_count",
+    ],
+    tricks: {
+      count: 3,
+      pool: ["scale", "rotation", "zero", "color"],
+    },
   },
 ]
 
-function getRandomTrack() {
-  return TRACKS[0]
+function getDifficulty(stage) {
+  return (
+    DIFFICULTY_CONFIG.find(
+      (item) => stage >= item.minStage && stage <= item.maxStage
+    ) ?? DIFFICULTY_CONFIG[0]
+  )
 }
 
-function getHorsePoint(card, winner, progress, pathEl) {
-  if (!pathEl) return { x: 180, y: 40 }
+function pickTricks(stage) {
+  const difficulty = getDifficulty(stage)
+  const pool = [...difficulty.tricks.pool]
+  const count = Math.min(difficulty.tricks.count, pool.length)
 
-// 능력 기반 속도 차이
-const speedFactor = 0.85 + card.speed * 0.06
+  const selected = []
 
-let raceProgress = progress * speedFactor
+  while (selected.length < count) {
+    const index = Math.floor(Math.random() * pool.length)
+    const trick = pool.splice(index, 1)[0]
+    selected.push(trick)
+  }
 
-const shake =
-  progress < 0.05 ? 0 : Math.sin(progress * 18 + card.id * 2) * 0.01
-  raceProgress += shake
+  return selected
+}
 
-  if (progress > 0.7) {
-    const finishPower = (progress - 0.7) / 0.3
+function applyTricks(cards, selectedTricks) {
+  let nextCards = [...cards]
 
-    if (card.id === winner.id) {
-      raceProgress += finishPower * 0.08
+  if (selectedTricks.includes("scale") && nextCards.length > 0) {
+    const targetIndex = Math.floor(Math.random() * nextCards.length)
+
+    nextCards[targetIndex] = {
+      ...nextCards[targetIndex],
+      scale: 1.8,
+      tricks: [...nextCards[targetIndex].tricks, "scale"],
+    }
+  }
+  if (selectedTricks.includes("rotation") && nextCards.length > 0) {
+    const targetIndex = Math.floor(Math.random() * nextCards.length)
+  
+    const rotateValue =
+      (Math.random() < 0.5 ? -1 : 1) *
+      (6 + Math.floor(Math.random() * 10))
+  
+    nextCards[targetIndex] = {
+      ...nextCards[targetIndex],
+      rotate: rotateValue,
+      tricks: [...nextCards[targetIndex].tricks, "rotation"],
+    }
+  }
+
+  return nextCards
+}
+
+function generateCards(stage) {
+  const difficulty = getDifficulty(stage)
+  const cardCount = difficulty.cardCount
+  const maxCategories = difficulty.maxCategories
+  const colorVariants = difficulty.colorVariants ?? COLORS.length
+
+  const selectedColors = [...COLORS]
+    .sort(() => Math.random() - 0.5)
+    .slice(0, colorVariants)
+
+    const CATEGORY_POOL = ["number", "alphabet"]
+
+    const selectedCategories = difficulty.forceCategory
+    ? [difficulty.forceCategory]
+    : CATEGORY_POOL
+        .sort(() => Math.random() - 0.5)
+        .slice(0, maxCategories)
+
+  const cards = []
+
+  for (let i = 0; i < cardCount; i++) {
+    const category =
+      selectedCategories[Math.floor(Math.random() * selectedCategories.length)]
+
+    const color =
+      selectedColors[Math.floor(Math.random() * selectedColors.length)]
+
+    if (category === "number") {
+      cards.push({
+        id: i,
+        category: "number",
+        type: "number",
+        value: Math.floor(Math.random() * 9) + 1,
+        color,
+        scale: 1,
+        tricks: [],
+      })
+    }
+
+    if (category === "alphabet") {
+      const charCode = 65 + Math.floor(Math.random() * 26)
+
+      cards.push({
+        id: i,
+        category: "alphabet",
+        type: "alphabet",
+        value: String.fromCharCode(charCode),
+        color,
+        scale: 1,
+        tricks: [],
+      })
+    }
+
+  }
+
+  const selectedTricks = pickTricks(stage)
+  const trickedCards = applyTricks(cards, selectedTricks)
+
+  return trickedCards
+}
+
+function createZeroQuestion(cards, t) {
+  const categories = [...new Set(cards.map(c => c.category))]
+  const candidates = []
+
+  if (categories.includes("number")) {
+    const existing = new Set(
+      cards.filter(c => c.category === "number").map(c => c.value)
+    )
+
+    for (let n = 0; n <= 9; n++) {
+      if (!existing.has(n)) {
+        candidates.push({
+          text: t.questionCard.replace("{icon}", n),
+          answer: 0,
+        })
+      }
+    }
+  }
+
+  if (categories.includes("alphabet")) {
+    const existing = new Set(
+      cards.filter(c => c.category === "alphabet").map(c => c.value)
+    )
+
+    for (let i = 0; i < 26; i++) {
+      const letter = String.fromCharCode(65 + i)
+
+      if (!existing.has(letter)) {
+        candidates.push({
+          text: t.questionCard.replace("{icon}", letter),
+          answer: 0,
+        })
+      }
+    }
+  }
+
+  if (candidates.length === 0) return null
+
+  const picked = candidates[Math.floor(Math.random() * candidates.length)]
+  const optionSet = new Set([0])
+
+  while (optionSet.size < 4) {
+    optionSet.add(Math.floor(Math.random() * 6))
+  }
+
+  return {
+    text: picked.text,
+    answer: 0,
+    options: [...optionSet].sort(() => Math.random() - 0.5),
+  }
+}
+
+function generateQuestion(cards, t, stage) {
+  const langKey = t === TEXT.ko ? "ko" : "en"
+  const difficulty = getDifficulty(stage)
+const allowedQuestionTypes = difficulty.allowedQuestionTypes ?? []
+
+  const categories = [...new Set(cards.map(c => c.category))]
+
+  const possibleQuestions = []
+
+  const availableColors = [...new Set(cards.map(c => c.color))]
+
+  if (allowedQuestionTypes.includes("color_count")) {
+    availableColors.forEach(color => {
+      possibleQuestions.push({
+        type: "color_count",
+        color,
+      })
+    })
+  }
+
+  if (allowedQuestionTypes.includes("category_count")) {
+    if (categories.includes("number")) {
+      possibleQuestions.push({ type: "category_count", category: "number" })
+    }
+
+    if (categories.includes("alphabet")) {
+      possibleQuestions.push({ type: "category_count", category: "alphabet" })
+    }
+  }
+
+  // 🔥 숫자 문제
+  if (categories.includes("number")) {
+    const numberCards = cards.filter(c => c.category === "number")
+
+    // 단일 개수
+    numberCards.forEach(card => {
+      if (allowedQuestionTypes.includes("number_count")) {
+        possibleQuestions.push({
+          type: "number_count",
+          value: card.value,
+        })
+      }
+    })
+
+    // 비교 (2개 이상일 때만)
+    if (numberCards.length >= 2) {
+      if (allowedQuestionTypes.includes("number_max")) {
+        possibleQuestions.push({ type: "number_max" })
+      }
+      
+      if (allowedQuestionTypes.includes("number_min")) {
+        possibleQuestions.push({ type: "number_min" })
+      }
+      const oddEvenChance =
+      stage >= 20
+        ? 0.3
+        : stage >= 10
+        ? 0.2
+        : 0.12
+    
+    if (
+      allowedQuestionTypes.includes("odd_count") &&
+      Math.random() < oddEvenChance
+    ) {
+      possibleQuestions.push({ type: "odd_count" })
+    }
+    
+    if (
+      allowedQuestionTypes.includes("even_count") &&
+      Math.random() < oddEvenChance
+    ) {
+      possibleQuestions.push({ type: "even_count" })
+    }
+
+    }
+  }
+
+  // 🔥 알파벳 문제
+  if (categories.includes("alphabet")) {
+    const alphabetCards = cards.filter(c => c.category === "alphabet")
+
+    alphabetCards.forEach(card => {
+      if (allowedQuestionTypes.includes("alphabet_count")) {
+        possibleQuestions.push({
+          type: "alphabet_count",
+          value: card.value,
+        })
+      }
+    })
+  }
+  const hasZeroTrick = cards.some(c => c.tricks.includes("zero"))
+
+  if (hasZeroTrick) {
+    const zeroQuestion = createZeroQuestion(cards, t)
+    if (zeroQuestion) return zeroQuestion
+  }
+
+  // 🔥 문제 선택
+  const picked =
+    possibleQuestions[Math.floor(Math.random() * possibleQuestions.length)]
+
+  let answer = null
+  let text = ""
+
+  if (picked.type === "color_count") {
+    const colorText = COLOR_TEXT[langKey]?.[picked.color] ?? picked.color
+
+    answer = cards.filter(c => c.color === picked.color).length
+
+    text = t.questionColorOnly.replace("{color}", colorText)
+  }
+
+  if (picked.type === "category_count") {
+    answer = cards.filter(c => c.category === picked.category).length
+
+    text =
+      picked.category === "number"
+        ? t.questionCategoryNumber
+        : t.questionCategoryAlphabet
+  }
+
+  // =========================
+  // 숫자
+  // =========================
+
+  if (picked.type === "number_count") {
+    answer = cards.filter(c => c.value === picked.value).length
+    text = t.questionCard.replace("{icon}", picked.value)
+  }
+
+  if (picked.type === "number_max") {
+    const nums = cards.filter(c => c.category === "number").map(c => c.value)
+    answer = Math.max(...nums)
+
+    text = langKey === "ko"
+      ? "가장 큰 숫자는?"
+      : "What is the largest number?"
+  }
+
+  if (picked.type === "number_min") {
+    const nums = cards.filter(c => c.category === "number").map(c => c.value)
+    answer = Math.min(...nums)
+
+    text = langKey === "ko"
+      ? "가장 작은 숫자는?"
+      : "What is the smallest number?"
+  }
+
+  if (picked.type === "odd_count") {
+    answer = cards.filter(
+      c =>
+        c.category === "number" &&
+        c.value % 2 === 1
+    ).length
+  
+    text =
+      langKey === "ko"
+        ? "홀수 숫자는 몇 개 있었나요?"
+        : "How many odd numbers were there?"
+  }
+  
+  if (picked.type === "even_count") {
+    answer = cards.filter(
+      c =>
+        c.category === "number" &&
+        c.value % 2 === 0
+    ).length
+  
+    text =
+      langKey === "ko"
+        ? "짝수 숫자는 몇 개 있었나요?"
+        : "How many even numbers were there?"
+  }
+
+  // =========================
+  // 알파벳
+  // =========================
+
+  if (picked.type === "alphabet_count") {
+    answer = cards.filter(c => c.value === picked.value).length
+    text = t.questionCard.replace("{icon}", picked.value)
+  }
+
+  // =========================
+  // 보기 생성
+  // =========================
+
+  const optionSet = new Set([answer])
+
+  while (optionSet.size < 4) {
+    if (typeof answer === "number") {
+      const fake = Math.max(0, answer + Math.floor(Math.random() * 7) - 3)
+      optionSet.add(fake)
     } else {
-      raceProgress -= finishPower * 0.04
+      const fake = String.fromCharCode(65 + Math.floor(Math.random() * 26))
+      optionSet.add(fake)
     }
   }
 
-  raceProgress = Math.min(1, Math.max(0, raceProgress))
+  const options = [...optionSet].sort(() => Math.random() - 0.5)
 
-  const total = pathEl.getTotalLength()
-  const point = pathEl.getPointAtLength(total * raceProgress)
-
-  return { x: point.x, y: point.y }
-}
-function loadSaveData() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-
-    if (!raw) {
-      return null
-    }
-
-    return JSON.parse(raw)
-  } catch {
-    return null
-  }
-}
-function loadSetting() {
-  try {
-    const raw = localStorage.getItem(SETTING_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
+  return {
+    text,
+    answer,
+    options,
   }
 }
 
-function saveSetting(data) {
-  localStorage.setItem(SETTING_KEY, JSON.stringify(data))
-}
-
-function saveData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-}
-function loadCurrentCards() {
-  try {
-    const raw = localStorage.getItem(CURRENT_CARDS_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
-  }
-}
-
-function saveCurrentCards(cards) {
-  localStorage.setItem(CURRENT_CARDS_KEY, JSON.stringify(cards))
-}
-function getTier(maxMoney) {
-  const tiers = [
-    { min: 0, name: "Bronze 1", image: "bronze1.png", color: "#b87333" },
-    { min: 5_000_000, name: "Bronze 2", image: "bronze2.png", color: "#b87333" },
-    { min: 10_000_000, name: "Bronze 3", image: "bronze3.png", color: "#b87333" },
-
-    { min: 20_000_000, name: "Silver 1", image: "silver1.png", color: "#bfc7d5" },
-    { min: 40_000_000, name: "Silver 2", image: "silver2.png", color: "#bfc7d5" },
-    { min: 70_000_000, name: "Silver 3", image: "silver3.png", color: "#bfc7d5" },
-
-    { min: 100_000_000, name: "Gold 1", image: "gold1.png", color: "#f6c343" },
-    { min: 200_000_000, name: "Gold 2", image: "gold2.png", color: "#f6c343" },
-    { min: 400_000_000, name: "Gold 3", image: "gold3.png", color: "#f6c343" },
-
-    { min: 700_000_000, name: "Platinum 1", image: "platinum1.png", color: "#d6f3ff" },
-    { min: 1_000_000_000, name: "Platinum 2", image: "platinum2.png", color: "#d6f3ff" },
-    { min: 1_500_000_000, name: "Platinum 3", image: "platinum3.png", color: "#d6f3ff" },
-
-    { min: 2_000_000_000, name: "Diamond 1", image: "diamond1.png", color: "#5ecbff" },
-    { min: 3_000_000_000, name: "Diamond 2", image: "diamond2.png", color: "#5ecbff" },
-    { min: 5_000_000_000, name: "Diamond 3", image: "diamond3.png", color: "#5ecbff" },
-
-    { min: 8_000_000_000, name: "Epic 1", image: "epic1.png", color: "#b84dff" },
-    { min: 12_000_000_000, name: "Epic 2", image: "epic2.png", color: "#b84dff" },
-    { min: 18_000_000_000, name: "Epic 3", image: "epic3.png", color: "#b84dff" },
-
-    { min: 25_000_000_000, name: "Legend 1", image: "legend1.png", color: "#ff4df0" },
-    { min: 40_000_000_000, name: "Legend 2", image: "legend2.png", color: "#ff4df0" },
-    { min: 60_000_000_000, name: "Legend 3", image: "legend3.png", color: "#ff4df0" },
-
-    { min: 100_000_000_000, name: "Mythic 1", image: "mythic1.png", color: "#ff3b3b" },
-    { min: 150_000_000_000, name: "Mythic 2", image: "mythic2.png", color: "#ff3b3b" },
-    { min: 250_000_000_000, name: "Mythic 3", image: "mythic3.png", color: "#ff3b3b" },
-
-    { min: 400_000_000_000, name: "Transcendent 1", image: "transcendent1.png", color: "#38ffd6" },
-    { min: 700_000_000_000, name: "Transcendent 2", image: "transcendent2.png", color: "#38ffd6" },
-    { min: 1_000_000_000_000, name: "Transcendent 3", image: "transcendent3.png", color: "#38ffd6" },
-
-    { min: 2_000_000_000_000, name: "Ultimate 1", image: "ultimate1.png", color: "#ffffff" },
-    { min: 5_000_000_000_000, name: "Ultimate 2", image: "ultimate2.png", color: "#ffffff" },
-    { min: 10_000_000_000_000, name: "Ultimate 3", image: "ultimate3.png", color: "#ffffff" },
-  ]
-
-  for (let i = tiers.length - 1; i >= 0; i--) {
-    if (maxMoney >= tiers[i].min) {
-      return tiers[i]
-    }
-  }
-
-  return tiers[0]
+const COLOR_TEXT = {
+  ko: {
+    red: "빨간",
+    blue: "파란",
+    yellow: "노란",
+    green: "초록",
+    purple: "보라",
+  },
+  en: {
+    red: "red",
+    blue: "blue",
+    yellow: "yellow",
+    green: "green",
+    purple: "purple",
+  },
 }
 
 const TEXT = {
   ko: {
-    nicknamePrompt: "닉네임을 입력하세요.",
-    startRace: "레이스 시작",
-    bettingAmount: "배팅 금액",
-    raceRunning: "레이스 진행중",
-    selectedRider: "선택 기수",
-    win: "🎉 승리!",
-    lose: "💀 패배",
-    next: "다음판",
+    questionLabel: "문제",
+    cardReview: "카드 확인",
+confirm: "확인",
+fail: "실패!",
+    success: "정답!",
+successDone: "성공!",
+next: "다음 단계",
+    memo: "카드를 기억하세요!",
+    mainTitleShort: "초",
+mainTitleMain: "기억 트랩",
+reachedStage: "도달 단계",
+correct: "정답",
+selected: "선택",
+retry: "다시하기",
+timeout: "시간초과",
+    questionCard: "{icon} 카드는 몇 개 있었나요?",
+    questionColor: "{color} {icon} 카드는 몇 개 있었나요?",
+    questionColorOnly: "{color} 카드는 몇 개 있었나요?",
+questionCategoryNumber: "숫자 카드는 몇 개 있었나요?",
+questionCategoryAlphabet: "알파벳 카드는 몇 개 있었나요?",
+    mainTitle: "3초 기억 트랩",
+    mainDesc: "3초 안에 기억하고 함정에 속지 마세요",
+stage: "단계",
+gameArea: "순간 기억력으로 함정을 돌파하세요",
+bestScoreLabel: "최고 기록",
+    title: GAME_TITLE,
+    subtitle: "새 게임을 여기에 넣으세요.",
+    start: "게임 시작",
+    result: "결과",
+    main: "메인으로",
     share: "공유",
+    reset: "초기화",
     setting: "설정",
     rule: "게임 규칙",
-    reset: "초기화",
-    change: "교체",
-    winStreak: "연승",
-winBonus: "연승 보너스",
-currentAsset: "자산",
-bankrupt: "💥 파산! 100만원으로 재시작",
-saveImage: "이미지 저장",
-main: "메인으로",
-myRecordCard: "나의 기록 카드",
-bestStreak: "최고 연승",
-winRate: "승률",
-totalWin: "총 승리",
-nicknameChange: "닉네임 변경",
-recordReset: "기록 초기화",
-sound: "사운드",
-bgm: "배경음",
-language: "언어",
-volume: "볼륨",
-close: "닫기",
-rules: [
-  "1. 기수를 선택하고 배팅 비율을 정합니다.",
-  "2. 레이스에서 선택한 기수가 우승하면 가상 재화를 얻습니다.",
-  "3. 패배하면 배팅한 가상 재화를 잃습니다.",
-  "4. 자산이 10만원 미만이면 100만원으로 재시작됩니다.",
-  "5. 본 게임은 실제 현금 거래가 없는 엔터테인먼트용 시뮬레이션입니다.",
-  "6. 결과창에서 기록을 친구와 공유할 수 있습니다.",
-],
-speed: "속도",
-curve: "커브",
-luck: "운",
-ad: "광고 영역",
-newRecord: "신기록",
-selectRider: "기수를 선택하세요.",
-resetConfirm: "저장된 기록을 초기화할까요?",
-subscribe: "구독",
-subDesc: "X2배속 · 광고 제거",
-revive: "🎬 부활하기 (광고보기)",
-aboutTitle: "게임 소개",
-aboutText:
-  "Horse Betting Simulator는 확률 기반 레이싱 웹게임으로, 각 기수의 능력치와 승률에 따라 결과가 결정됩니다. 플레이어는 기수를 선택하고 배팅을 진행하며, 연승과 보너스를 통해 자산을 늘릴 수 있습니다. 본 게임은 실제 금전이 아닌 가상 재화를 사용하는 엔터테인먼트 목적의 시뮬레이션 게임입니다.",
-privacy: "개인정보처리방침",
-contact: "문의",
-support: "후원",
+    recordReset: "기록 초기화",
+    sound: "사운드",
+    bgm: "배경음",
+    language: "언어",
+    volume: "볼륨",
+    close: "닫기",
+    ad: "Advertisement",
+    privacy: "개인정보처리방침",
+    contact: "문의",
+    support: "후원",
+    aboutTitle: "게임 소개",
+    aboutText:
+      "3 Second Memory Trap은 짧은 시간 안에 카드를 기억하고 다양한 시각 함정을 구분하는 두뇌 기억 게임입니다. 단계가 올라갈수록 카드 수와 트릭이 증가하며 집중력과 순간 기억력을 테스트합니다.",
+    resetConfirm: "저장된 기록을 초기화할까요?",
+    rules: [
+      "1. 카드를 빠르게 기억하세요.",
+      "2. 화면이 바뀌면 문제를 정확히 읽으세요.",
+      "3. 크기, 색깔 등으로 착각을 유도합니다.",
+      "4. 보이는 것보다 문제 조건이 더 중요합니다.",
+      "5. 없는 카드(0개)가 정답일 수도 있습니다.",
+    ],
   },
-
   en: {
-    nicknamePrompt: "Enter nickname",
-    startRace: "Start Race",
-    bettingAmount: "Bet Amount",
-    raceRunning: "Racing",
-    selectedRider: "Selected Rider",
-    win: "🎉 Win!",
-    lose: "💀 Lose",
-    next: "Next",
+    questionLabel: "Question",
+    cardReview: "Check Cards",
+confirm: "Confirm",
+fail: "Fail!",
+    success: "Correct!",
+successDone: "Clear!",
+next: "Next",
+    memo: "Memorize the cards!",
+    mainTitleShort: " sec",
+mainTitleMain: "Memory Trap",
+reachedStage: "Stage",
+correct: "Correct",
+selected: "Your Answer",
+retry: "Retry",
+timeout: "Timeout",
+    questionCard: "How many {icon} cards were there?",
+    questionColor: "How many {color} {icon} cards were there?",
+    questionColorOnly: "How many {color} cards were there?",
+questionCategoryNumber: "How many number cards were there?",
+questionCategoryAlphabet: "How many alphabet cards were there?",
+    title: GAME_TITLE,
+    mainTitle: "3 Second Memory Game",
+    mainDesc: "Easy to play, hard to get right",
+stage: "Stage",
+gameArea: "Break through traps with instant memory",
+bestScoreLabel: "Best Score",
+    subtitle: "Put your new game here.",
+    start: "Start Game",
+    result: "Result",
+    main: "Main",
     share: "Share",
+    reset: "Reset",
     setting: "Settings",
     rule: "Rules",
-    reset: "Reset",
-    change: "Change",
-    winStreak: "Win Streak",
-winBonus: "Streak Bonus",
-currentAsset: "Asset",
-bankrupt: "💥 Bankrupt! Restart with 1,000,000",
-saveImage: "Save Image",
-main: "Main",
-myRecordCard: "My Record Card",
-bestStreak: "Best Streak",
-winRate: "Win Rate",
-totalWin: "Total Wins",
-nicknameChange: "Change Nickname",
-recordReset: "Reset Record",
-sound: "Sound",
-bgm: "BGM",
-language: "Language",
-volume: "Volume",
-close: "Close",
-rules: [
-  "1. Choose a rider and set your bet rate.",
-  "2. Win the race to earn virtual currency rewards.",
-  "3. Lose the race and your virtual bet is lost.",
-  "4. If assets drop below 100,000, restart with 1,000,000.",
-  "5. This is an entertainment simulation with no real-money transactions.",
-  "6. You can share your record with friends from the result screen.",
-],
-speed: "Speed",
-curve: "Curve",
-luck: "Luck",
-ad: "Ad Area",
-newRecord: "New Record",
-selectRider: "Please select a rider.",
-resetConfirm: "Reset saved data?",
-subscribe: "Subscribe",
-subDesc: "X2 Speed · No Ads",
-revive: "🎬 Revive (Watch Ad)",
-aboutTitle: "About",
-aboutText:
-  "Horse Betting Simulator is a probability-based racing web game where results are determined by each rider’s stats and win rate. Players select riders, place bets, and grow their assets through wins and streak bonuses. This game uses virtual currency only and is intended purely for entertainment purposes.",
-privacy: "Privacy Policy",
-contact: "Contact",
-support: "Support",
+    recordReset: "Reset Record",
+    sound: "Sound",
+    bgm: "BGM",
+    language: "Language",
+    volume: "Volume",
+    close: "Close",
+    ad: "Ad Area",
+    privacy: "Privacy Policy",
+    contact: "Contact",
+    support: "Support",
+    aboutTitle: "About",
+    aboutText:
+      "3 Second Memory Trap is a fast-paced brain memory game where players memorize cards and survive visual traps within seconds. As the stage increases, more cards and tricky visual effects appear to challenge your focus and memory.",
+    resetConfirm: "Reset saved data?",
+    rules: [
+      "1. Memorize the cards quickly.",
+      "2. Read the question carefully.",
+      "3. Size and color may trick you.",
+      "4. Focus on the condition, not appearance.",
+      "5. The answer can be zero.",
+    ],
   },
 }
 
 export default function App() {
+  const savedData = loadJson(STORAGE_KEY, {})
+  const savedSetting = loadJson(SETTING_KEY, {})
 
-  const soundsRef = useRef(null)
+  const [page, setPage] = useState(window.location.pathname)
+  const [screen, setScreen] = useState("main")
+  const [popup, setPopup] = useState(null)
+  const [installPrompt, setInstallPrompt] = useState(null)
 
-  if (!soundsRef.current) {
-    soundsRef.current = {
-      start: new Audio("/sound/start.wav"),
-      run: new Audio("/sound/run_loop.mp3"),
-      win: new Audio("/sound/win.wav"),
-      lose: new Audio("/sound/lose.wav"),
-      click: new Audio("/sound/click.wav"),
-    }
+  const [language, setLanguage] = useState(savedSetting.language ?? getDefaultLanguage())
+  const [soundOn, setSoundOn] = useState(savedSetting.soundOn ?? true)
+  const [bgmOn, setBgmOn] = useState(savedSetting.bgmOn ?? false)
+  const [volume, setVolume] = useState(savedSetting.volume ?? 0.3)
 
-    soundsRef.current.run.loop = true
-    soundsRef.current.run.volume = 0.3
+  const [bestScore, setBestScore] = useState(savedData.bestScore ?? 0)
+  const [lastScore, setLastScore] = useState(savedData.lastScore ?? 0)
+
+  const [stage, setStage] = useState(1)
+const [cards, setCards] = useState([])
+const [questionCards, setQuestionCards] = useState([])
+const [reviewMode, setReviewMode] = useState(false)
+const [hideCards, setHideCards] = useState(false)
+const [question, setQuestion] = useState(null)
+const [options, setOptions] = useState([])
+const [selectedAnswer, setSelectedAnswer] = useState(null)
+const [answerLocked, setAnswerLocked] = useState(false)
+const [timeLeft, setTimeLeft] = useState(5)
+const [questionTimeLeft, setQuestionTimeLeft] = useState(0)
+
+  const clickSoundRef = useRef(null)
+  const correctSoundRef = useRef(null)
+const wrongSoundRef = useRef(null)
+
+if (!clickSoundRef.current) {
+  clickSoundRef.current = new Audio("/sound/click.wav")
+}
+
+if (!correctSoundRef.current) {
+  correctSoundRef.current = new Audio("/sound/correct.wav")
+}
+
+if (!wrongSoundRef.current) {
+  wrongSoundRef.current = new Audio("/sound/wrong.wav")
+}
+
+
+
+  const t = TEXT[language]
+  const isMobile = window.innerWidth <= 420
+  const scale = isMobile ? 1 : Math.min(1, window.innerHeight / 844)
+
+  const playClick = () => {
+    if (!soundOn) return
+    const s = clickSoundRef.current.cloneNode()
+    s.volume = volume
+    s.play().catch(() => {})
   }
-  const sounds = soundsRef.current
-
-  const playSound = (name, loop = false) => {
-    if (!soundOn && name !== "run") return
-    if (name === "run" && !bgmOn) return
-  
-    const base = sounds[name]
-    if (!base) return
-  
-    if (loop) {
-      base.pause()
-      base.currentTime = 0
-      base.loop = true
-      base.volume = volume
-      base.play().catch(() => {})
-      return
-    }
-  
-    const s = base.cloneNode()
+  const playCorrect = () => {
+    if (!soundOn) return
+    const s = correctSoundRef.current.cloneNode()
     s.volume = volume
     s.play().catch(() => {})
   }
   
-  const stopSound = (name) => {
-    const s = sounds[name]
-    if (!s) return
-    s.pause()
-    s.currentTime = 0
+  const playWrong = () => {
+    if (!soundOn) return
+    const s = wrongSoundRef.current.cloneNode()
+    s.volume = volume
+    s.play().catch(() => {})
   }
-  
-  const isMobile = window.innerWidth <= 420
-
-  const scale = isMobile
-    ? 1
-    : Math.min(1, window.innerHeight / 844)
-
-  const [displayProfit, setDisplayProfit] = useState(0)
-  const savedData = loadSaveData()
-  const racePathRef = useRef(null)
-  const shareCardRef = useRef(null)
-  const [screen, setScreen] = useState("main")
-  const [page, setPage] = useState(window.location.pathname)
-  const [popup, setPopup] = useState(null)
-  const [installPrompt, setInstallPrompt] = useState(null)
-  const setting = loadSetting()
-
-  const [soundOn, setSoundOn] = useState(
-    setting?.soundOn ?? true
-  )
-  const [bgmOn, setBgmOn] = useState(
-    setting?.bgmOn ?? true
-  )
-  const [volume, setVolume] = useState(
-    setting?.volume ?? 0.3
-  )
-  const [language, setLanguage] = useState(
-    setting?.language ?? getDefaultLanguage()
-  )
-
-  const [nickname, setNickname] = useState(
-    savedData?.nickname || (language === "ko" ? "질주본능" : "Racer")
-  )
-
-  const [money, setMoney] = useState(
-    savedData?.money || START_MONEY
-  )
-
-  const [maxMoney, setMaxMoney] = useState(
-    savedData?.maxMoney || START_MONEY
-  )
-
-  const [cards, setCards] = useState(() => {
-    const savedCards = loadCurrentCards()
-  
-    if (savedCards && savedCards.length === 2) {
-      return savedCards
-    }
-  
-    const newCards = generateCards()
-    saveCurrentCards(newCards)
-    return newCards
-  })
-  const [selectedCard, setSelectedCard] = useState(null)
-  const [betRate, setBetRate] = useState(0.1)
-
-  const [currentWinStreak, setCurrentWinStreak] = useState(
-    savedData?.currentWinStreak || 0
-  )
-
-  const [maxWinStreak, setMaxWinStreak] = useState(
-    savedData?.maxWinStreak || 0
-  )
-
-  const [winCount, setWinCount] = useState(savedData?.winCount || 0)
-  const [totalGame, setTotalGame] = useState(savedData?.totalGame || 0)
-
-  const [raceWinner, setRaceWinner] = useState(null)
-  const [round, setRound] = useState(1)
-const [score, setScore] = useState({ a: 0, b: 0 })
-const [roundWinner, setRoundWinner] = useState(null)
-  const [raceTrack, setRaceTrack] = useState(() => getRandomTrack())
-  const [raceProgress, setRaceProgress] = useState(0)
-  const [countdown, setCountdown] = useState(null)
-  const [result, setResult] = useState(null)
-  const [isNewRecord, setIsNewRecord] = useState(false)
-  const [tierUpInfo, setTierUpInfo] = useState(null)
-  const [reviveUsed, setReviveUsed] = useState(
-    savedData?.reviveUsed || false
-  )
-
-  const betAmount = Math.floor(money * betRate)
 
   useEffect(() => {
-    if (!result) return
+    saveJson(STORAGE_KEY, {
+      bestScore,
+      lastScore,
+    })
+  }, [bestScore, lastScore])
+
+  useEffect(() => {
+    saveJson(SETTING_KEY, {
+      language,
+      soundOn,
+      bgmOn,
+      volume,
+    })
+  }, [language, soundOn, bgmOn, volume])
+
+  useEffect(() => {
+    if (screen !== "memorize") return
   
-    let start = 0
-    const end = Math.abs(result.profit)
-    const duration = 800
-    const stepTime = 16
-    const totalSteps = duration / stepTime
-    const increment = end / totalSteps
+    setTimeLeft(GAME_CONFIG.memorizeSeconds)
+
+
+  let hideTimer = null
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 0) {
+          clearInterval(timer)
+          setHideCards(true)
+
+          hideTimer = setTimeout(() => {
+            const q = generateQuestion(cards, t, stage)
+            setQuestion(q)
+            setOptions(q.options)
+            setQuestionCards(cards)
+            setCards([])
+            setQuestionTimeLeft(GAME_CONFIG.questionSeconds)
+            setScreen("question")
+          }, GAME_CONFIG.hideDelayMs)
+          
+          return 0
+        }
+  
+        return prev - 1
+      })
+    }, 1000)
+  
+    return () => {
+      clearInterval(timer)
+      if (hideTimer) clearTimeout(hideTimer)
+    }
+  }, [screen])
+
+  useEffect(() => {
+    if (screen !== "question") return
+    setAnswerLocked(false)
+  
+    let isActive = true
   
     const timer = setInterval(() => {
-      start += increment
+      setQuestionTimeLeft((prev) => {
+        if (!isActive) return prev
   
-      if (start >= end) {
-        start = end
-        clearInterval(timer)
-      }
+        if (prev <= 0) {
+          clearInterval(timer)
   
-      setDisplayProfit(Math.floor(start))
-    }, stepTime)
+          if (!isActive) return 0
+          playWrong()
+          setSelectedAnswer(t.timeout)
+          setAnswerLocked(true)
+          setLastScore(Math.max(0, stage - 1))
+          setBestScore((prevBest) => Math.max(prevBest, Math.max(0, stage - 1)))
+          setScreen("result")
   
-    return () => clearInterval(timer)
-  }, [result])
-
-  useEffect(() => {
-    saveData({
-      nickname,
-      money,
-      maxMoney,
-      currentWinStreak,
-      maxWinStreak,
-      winCount,
-      totalGame,
-      reviveUsed,
-    })
-  }, [
-    nickname,
-    money,
-    maxMoney,
-    currentWinStreak,
-    maxWinStreak,
-    winCount,
-    totalGame,
-    reviveUsed,
-  ])
-  useEffect(() => {
-    const raw = localStorage.getItem(ACTIVE_RACE_KEY)
-    const f5LoseResult = localStorage.getItem(F5_LOSE_RESULT_KEY)
-    const lastScreen = localStorage.getItem(LAST_SCREEN_KEY)
+          return 0
+        }
   
-    // 레이스중 F5 직후 결과 유지
-    if (f5LoseResult) {
-      const savedResult = JSON.parse(f5LoseResult)
-  
-      setMoney(savedResult.money)
-      setCurrentWinStreak(0)
-      setTotalGame(savedResult.totalGame)
-  
-      setResult({
-        isWin: false,
-        winner: null,
-        selectedCard: savedResult.selectedCard,
-        canRevive: !savedResult.restarted && !reviveUsed,
-        profit: savedResult.profit,
-        money: savedResult.money,
-        restarted: savedResult.restarted,
-        beforeRestartMoney: savedResult.beforeRestartMoney ?? savedResult.money,
+        return prev - 1
       })
+    }, 1000)
   
-      localStorage.removeItem(F5_LOSE_RESULT_KEY)
-      localStorage.setItem(LAST_SCREEN_KEY, "result")
-      setScreen("result")
-      return
+    return () => {
+      isActive = false
+      clearInterval(timer)
     }
-  
-    // 레이스중 F5 = 패배 처리
-    if (raw) {
-      const activeRace = JSON.parse(raw)
-  
-      let nextMoney = activeRace.money - activeRace.betAmount
-      const beforeRestartMoney = activeRace.money - activeRace.betAmount
-      let restarted = false
-  
-      if (nextMoney < 100000) {
-        nextMoney = START_MONEY
-        restarted = true
-        resetUserProgress()
-      }
-  
-      const savedResult = {
-        selectedCard: activeRace.selectedCard,
-        profit: -activeRace.betAmount,
-        money: nextMoney,
-        restarted,
-        totalGame: activeRace.totalGame + 1,
-        beforeRestartMoney: beforeRestartMoney,
-      }
-  
-      localStorage.removeItem(ACTIVE_RACE_KEY)
-      localStorage.setItem(F5_LOSE_RESULT_KEY, JSON.stringify(savedResult))
-  
-      setMoney(nextMoney)
-      setCurrentWinStreak(0)
-      setTotalGame(activeRace.totalGame + 1)
-  
-      setResult({
-        isWin: false,
-        winner: null,
-        selectedCard: activeRace.selectedCard,
-        canRevive: !restarted && !reviveUsed,
-        profit: -activeRace.betAmount,
-        money: nextMoney,
-        restarted,
-        beforeRestartMoney: nextMoney,
-      })
-  
-      setScreen("result")
-      return
-    }
-  
-    // 결과창/공유창 F5 = 메인 + 새 기수
-    if (lastScreen === "result" || lastScreen === "share") {
-      const newCards = generateCards()
-  
-      saveCurrentCards(newCards)
-      setCards(newCards)
-      setSelectedCard(null)
-      setRaceWinner(null)
-      setRaceProgress(0)
-      setCountdown(null)
-      setRound(1)
-      setScore({ a: 0, b: 0 })
-      setRoundWinner(null)
-      setResult(null)
-  
-      localStorage.setItem(LAST_SCREEN_KEY, "main")
-      setScreen("main")
-      return
-    }
-  
-    localStorage.setItem(LAST_SCREEN_KEY, "main")
-  }, [])
+  }, [screen])
 
   useEffect(() => {
     const handlePopState = () => {
       setPage(window.location.pathname)
       window.scrollTo(0, 0)
     }
-  
-    window.addEventListener("popstate", handlePopState)
-  
-    return () => {
-      window.removeEventListener("popstate", handlePopState)
-    }
-  }, [])
 
-  useEffect(() => {
-    saveSetting({
-      soundOn,
-      bgmOn,
-      volume,
-      language,
-    })
-  }, [soundOn, bgmOn, volume, language])
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [])
 
   useEffect(() => {
     const handler = (e) => {
@@ -731,1584 +876,890 @@ const [roundWinner, setRoundWinner] = useState(null)
     }
 
     window.addEventListener("beforeinstallprompt", handler)
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handler)
-    }
+    return () => window.removeEventListener("beforeinstallprompt", handler)
   }, [])
 
-  useEffect(() => {
-    if (screen !== "race" || !raceWinner) return
-  
-    setRaceProgress(0)
-    setCountdown("READY")
-  
-    let count = 0
-
-    const countdownTimer = setInterval(() => {
-      count += 1
-    
-      if (count === 1) {
-        setCountdown("GO!")
-        return
-      }
-    
-      clearInterval(countdownTimer)
-      setCountdown(null)
-      playSound("run", true)
-      const startTime = Date.now()
-  
-      const raceTimer = setInterval(() => {
-        const elapsed = Date.now() - startTime
-        const progress = Math.min(elapsed / RACE_DURATION, 1)
-  
-        setRaceProgress(progress)
-  
-        if (progress >= 1) {
-          clearInterval(raceTimer)
-        
-          stopSound("run")
-        
-          setTimeout(() => {
-            finishRace(raceWinner)
-          }, 500)
-        }
-      }, 16)
-    }, 1000)
-  
-    return () => clearInterval(countdownTimer)
-  }, [screen, raceWinner, round])
-
-  const refreshCards = () => {
-    setCards(generateCards())
-    setSelectedCard(null)
-  }
-
-  const changeNickname = () => {
-    const nextNickname = prompt(t.nicknamePrompt, nickname)
-  
-    if (!nextNickname) return
-  
-    const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(nextNickname)
-    const maxLen = hasKorean ? 8 : 12
-    
-    setNickname(nextNickname.slice(0, maxLen))
-  }
   const goPage = (path) => {
     window.history.pushState({}, "", path)
     setPage(path)
     window.scrollTo(0, 0)
   }
-  
+
   const goHome = () => {
     window.history.pushState({}, "", "/")
     setPage("/")
     window.scrollTo(0, 0)
   }
 
-  const resetUserProgress = () => {
-    setMoney(START_MONEY)
-    setMaxMoney(START_MONEY)
-    setCurrentWinStreak(0)
-    setMaxWinStreak(0)
-    setWinCount(0)
-    setTotalGame(0)
-    setReviveUsed(false)
-  
-    saveData({
-      nickname,
-      money: START_MONEY,
-      maxMoney: START_MONEY,
-      currentWinStreak: 0,
-      maxWinStreak: 0,
-      winCount: 0,
-      totalGame: 0,
-      reviveUsed: false,
-    })
-  }
-
   const resetData = () => {
     const ok = confirm(t.resetConfirm)
     if (!ok) return
-  
+
     localStorage.removeItem(STORAGE_KEY)
-    localStorage.removeItem(CURRENT_CARDS_KEY)
-    localStorage.removeItem(ACTIVE_RACE_KEY)
     localStorage.removeItem(LAST_SCREEN_KEY)
-    localStorage.removeItem(F5_LOSE_RESULT_KEY)
-  
-    setNickname(language === "ko" ? "질주본능" : "Racer")
-    resetUserProgress()
-  
-    const newCards = generateCards()
-    setCards(newCards)
-    saveCurrentCards(newCards)
-  
-    setSelectedCard(null)
-    setResult(null)
-    setRaceWinner(null)
-    setRaceProgress(0)
-    setCountdown(null)
-    setRound(1)
-    setScore({ a: 0, b: 0 })
-    setRoundWinner(null)
-  
+
+    setBestScore(0)
+    setLastScore(0)
     setScreen("main")
   }
-  const changeCards = () => {
-    if (money <= 100000) return
+
+  const startGame = () => {
+    playClick()
+
+    setStage(50)
   
-    const cost = Math.floor(money * 0.05)
+    const newCards = generateCards(stage)
   
-    if (money <= cost) return
-  
-    const newMoney = money - cost
-    const newCards = generateCards()
-  
-    setMoney(newMoney)
     setCards(newCards)
-    saveCurrentCards(newCards)
-    setSelectedCard(null)
+    setQuestionCards(newCards)
+    setTimeLeft(GAME_CONFIG.memorizeSeconds) // 핵심
+    setQuestionTimeLeft(0)
+    setQuestion(null)
+    setOptions([])
+    setSelectedAnswer(null)
+    setAnswerLocked(false)
+    setHideCards(false)
+    setScreen("memorize")
   }
 
-  const startRace = () => {
-    if (!selectedCard) {
-      alert(t.selectRider)
-      return
-    }
+  const koMessages = [
+    `🧠 최고 기록: ${bestScore}단계\n\n3초 안에 기억하고 함정을 피할 수 있을까?`,
+    `🔥 ${bestScore}단계 돌파!\n\n이거 생각보다 진짜 헷갈림`,
+    `👀 3초 보고 다 기억 가능?\n\n${bestScore}단계까지 생존 성공`,
+    `⚠️ 단순 기억게임 아님\n\n함정 때문에 계속 틀림`,
+    `🧩 갈수록 뇌가 꼬이는 기억 트랩\n\n최고 기록 ${bestScore}단계`,
+  ]
   
-    playSound("start")
+  const enMessages = [
+    `🧠 Best Score: Stage ${bestScore}\n\nCan you survive the 3-second memory trap?`,
+    `🔥 Reached Stage ${bestScore}!\n\nThis gets confusing really fast`,
+    `👀 Think you can remember all cards in 3 seconds?`,
+    `⚠️ Looks easy. Actually brutal.`,
+    `🧩 A fast brain memory trap game\n\nBest Score: Stage ${bestScore}`,
+  ]
   
-    const winner = pickWinner(cards)
-    localStorage.setItem(
-      ACTIVE_RACE_KEY,
-      JSON.stringify({
-        selectedCard,
-        betAmount,
-        money,
-        currentWinStreak,
-        winCount,
-        totalGame,
-      })
-    )
-  
-    setTimeout(() => {
-      setRaceWinner(winner)
-      setRaceTrack(getRandomTrack())
-      setRaceProgress(0)
-      setCountdown("READY")
-      setRound(1)
-      setScore({ a: 0, b: 0 })
-      localStorage.setItem(LAST_SCREEN_KEY, "race")
-      setScreen("race")
-    }, 300)
-  }
-  const finishRace = (winner) => {
-    stopSound("run")
-  
-    const idx = cards.findIndex((c) => c.id === winner.id)
-  
-    let newScore = { ...score }
-  
-    if (idx === 0) {
-      newScore.a += 1
-    } else {
-      newScore.b += 1
-    }
-  
-    setScore(newScore)
-    setRoundWinner(winner)
-  
-    const isMatchEnd =
-      newScore.a === 2 ||
-      newScore.b === 2 ||
-      round === 3
-  
-    // 아직 3판 승부 안 끝났으면 다음 라운드
-    if (!isMatchEnd) {
-      setTimeout(() => {
-        const nextWinner = pickWinner(cards)
-  
-        setRound((r) => r + 1)
-        setRaceWinner(nextWinner)
-        setRaceProgress(0)
-        setCountdown("READY")
-      }, 1200)
-  
-      return
-    }
-  
-    // 최종 승자
-    const finalWinner =
-      newScore.a > newScore.b ? cards[0] : cards[1]
-  
-    const isWin = finalWinner.id === selectedCard.id
-  
-    let nextMoney = money
-    let profit = 0
-    let nextCurrentStreak = currentWinStreak
-    let nextWinCount = winCount
-  
-    if (isWin) {
-      playSound("win")
-  
-      const bonusRate = Math.min(currentWinStreak * 0.05, 0.5)
-  
-      const baseReturn = Math.floor(betAmount * selectedCard.odds)
-      const pureProfit = baseReturn - betAmount
-      const bonusProfit = Math.floor(pureProfit * bonusRate)
-  
-      profit = baseReturn + bonusProfit
-      nextMoney = money + profit
-      nextCurrentStreak = currentWinStreak + 1
-      nextWinCount = winCount + 1
-    } else {
-      playSound("lose")
-  
-      profit = -betAmount
-      nextMoney = money - betAmount
-      nextCurrentStreak = 0
-    }
-  
-    const beforeRestartMoney = nextMoney
-    const restarted = nextMoney < 100000
-    
-    let nextMaxMoney = Math.max(maxMoney, nextMoney)
-    let nextMaxStreak = Math.max(maxWinStreak, nextCurrentStreak)
-    let nextTotalGame = totalGame + 1
-    let nextReviveUsed = reviveUsed
-    
-    if (restarted) {
-      nextMoney = START_MONEY
-      nextCurrentStreak = 0
-      nextWinCount = 0
-      nextMaxMoney = START_MONEY
-      nextMaxStreak = 0
-      nextTotalGame = 0
-      nextReviveUsed = false
-    
-      resetUserProgress()
-    }
-    
-    const isRecord = !restarted && nextMoney > maxMoney
-    
-    const prevTier = getTier(maxMoney)
-    const nextTier = getTier(nextMaxMoney)
-    const isTierUp = !restarted && prevTier.name !== nextTier.name
-    
-    if (isTierUp) {
-      setTimeout(() => {
-        setTierUpInfo({
-          prevTier,
-          nextTier,
+  const randomMessage =
+    language === "ko"
+      ? koMessages[Math.floor(Math.random() * koMessages.length)]
+      : enMessages[Math.floor(Math.random() * enMessages.length)]
+
+  const shareTextResult = async () => {
+    const shareUrl = window.location.origin
+    const message =
+  `${GAME_TITLE}\n\n${randomMessage}\n\n👉 ${shareUrl}`
+
+    try {
+      if (navigator.share && /Mobi|Android|iPhone/i.test(navigator.userAgent)) {
+        await navigator.share({
+          title: GAME_TITLE,
+          text: message,
         })
-      }, 500)
+        return
+      }
+    } catch {
+      return
     }
-    
-    setIsNewRecord(isRecord)
-    
-    setMoney(nextMoney)
-    setMaxMoney(nextMaxMoney)
-    setCurrentWinStreak(nextCurrentStreak)
-    setMaxWinStreak(nextMaxStreak)
-    setWinCount(nextWinCount)
-    setTotalGame(nextTotalGame)
-    setReviveUsed(nextReviveUsed)
-    
-    if (!restarted) {
-      saveData({
-        nickname,
-        money: nextMoney,
-        maxMoney: nextMaxMoney,
-        currentWinStreak: nextCurrentStreak,
-        maxWinStreak: nextMaxStreak,
-        winCount: nextWinCount,
-        totalGame: nextTotalGame,
-        reviveUsed: nextReviveUsed,
-      })
-    }
-    
-    setResult({
-      beforeRestartMoney,
-      canRevive: !isWin && !restarted && !nextReviveUsed,
-      isWin,
-      winner: finalWinner,
-      selectedCard,
-      profit,
-      money: nextMoney,
-      restarted,
-    })
-    
-    localStorage.removeItem(ACTIVE_RACE_KEY)
-    localStorage.setItem(LAST_SCREEN_KEY, "result")
-    setScreen("result")
+
+    await navigator.clipboard.writeText(message)
+    alert(language === "ko" ? "복사되었습니다." : "Copied!")
   }
 
-  const getRandomShareMessage = () => {
-    const list = language === "ko" ? SHARE_MESSAGES_KO : SHARE_MESSAGES_EN
-    return list[Math.floor(Math.random() * list.length)]
-  }
-
-const shareTextResult = async () => {
-  const shareUrl = window.location.origin
-
-  const shareMessage = getRandomShareMessage()
-  const message = language === "ko"
-  ? `티어: ${tier.name}
-닉네임: ${nickname}
-최대 자산: ${formatMoney(maxMoney, language)}
-${shareMessage} 👉
-${shareUrl}`
-  : `Tier: ${tier.name}
-Nickname: ${nickname}
-Max Asset: ${formatMoney(maxMoney, language)}
-${shareMessage} 👉
-${shareUrl}`
-
-try {
-  // 모바일에서만 공유창
-  if (navigator.share && /Mobi|Android|iPhone/i.test(navigator.userAgent)) {
-    await navigator.share({
-      title: "Duckpick",
-      text: message,
-    })
-    return
-  }
-} catch (e) {
-  // 공유 취소시 무시
-}
-
-// 웹/PC fallback
-await navigator.clipboard.writeText(message)
-alert(
-  language === "ko"
-    ? "복사되었습니다.\n카카오톡 등에 붙여넣기 하세요."
-    : "Copied!\nPaste it to share."
-)
-}
-
-  const saveShareImage = async () => {
-    if (!shareCardRef.current) return
-  
-    const canvas = await html2canvas(shareCardRef.current, {
-      backgroundColor: null,
-      scale: 2,
-    })
-  
-    const image = canvas.toDataURL("image/png")
-    const link = document.createElement("a")
-  
-    link.href = image
-    link.download = `horse-record-${Date.now()}.png`
-    link.click()
-  }
-  const handleRevive = () => {
-    if (!result) return
-    if (reviveUsed) return
-  
-    const recoveredMoney =
-      (result.restarted ? result.beforeRestartMoney : result.money) +
-      Math.abs(result.profit)
-  
-    setReviveUsed(true)
-  
-    saveData({
-      nickname,
-      money: recoveredMoney,
-      maxMoney,
-      currentWinStreak: 0,
-      maxWinStreak,
-      winCount,
-      totalGame,
-      reviveUsed: true,
-    })
-  
-    setMoney(recoveredMoney)
-    setCurrentWinStreak(0)
-  
-    const newCards = generateCards()
-    setCards(newCards)
-    saveCurrentCards(newCards)
-  
-    setSelectedCard(null)
-    setRaceWinner(null)
-    setRaceTrack(getRandomTrack())
-    setRaceProgress(0)
-    setCountdown(null)
-    setRound(1)
-    setScore({ a: 0, b: 0 })
-    setRoundWinner(null)
-    setResult(null)
-  
-    localStorage.setItem(LAST_SCREEN_KEY, "main")
-    setScreen("main")
-  }
-  const nextRound = () => {
-    setIsNewRecord(false)
-  
-    if (result?.restarted) {
-      resetUserProgress()
-    }
-  
-    const newCards = generateCards()
-    setCards(newCards)
-    saveCurrentCards(newCards)
-  
-    setSelectedCard(null)
-    setRaceWinner(null)
-    setRaceTrack(getRandomTrack())
-    setRaceProgress(0)
-    setCountdown(null)
-    setRound(1)
-    setScore({ a: 0, b: 0 })
-    setRoundWinner(null)
-    setResult(null)
-  
-    localStorage.setItem(LAST_SCREEN_KEY, "main")
-    setScreen("main")
-  }
-  const getHorseName = (card) => {
-    return language === "ko" ? card.nameKo : card.nameEn
-  }
-  const getTierImage = (tier) => {
-    return `/img/tier/${tier.image}`
-  }
-  const getTierEffect = (tier) => {
-    if (tier.name.includes("Ultimate")) {
-      return {
-        border: "2px solid #ffffff",
-        boxShadow: "0 0 18px rgba(255,255,255,0.9)",
-      }
-    }
-  
-    if (tier.name.includes("Transcendent")) {
-      return {
-        border: "2px solid #38ffd6",
-        boxShadow: "0 0 16px rgba(56,255,214,0.85)",
-      }
-    }
-  
-    if (tier.name.includes("Mythic")) {
-      return {
-        border: "2px solid #ff3b3b",
-        boxShadow: "0 0 16px rgba(255,59,59,0.85)",
-      }
-    }
-  
-    if (tier.name.includes("Legend")) {
-      return {
-        border: "2px solid #ff4df0",
-        boxShadow: "0 0 14px rgba(255,77,240,0.9)",
-      }
-    }
-  
-    if (tier.name.includes("Epic")) {
-      return {
-        border: "2px solid #b84dff",
-        boxShadow: "0 0 12px rgba(184,77,255,0.75)",
-      }
-    }
-  
-    if (tier.name.includes("Diamond")) {
-      return {
-        border: "2px solid #5ecbff",
-        boxShadow: "0 0 12px rgba(94,203,255,0.8)",
-      }
-    }
-  
-    if (tier.name.includes("Platinum")) {
-      return {
-        border: "2px solid #d6f3ff",
-        boxShadow: "0 0 10px rgba(214,243,255,0.7)",
-      }
-    }
-  
-    if (tier.name.includes("Gold")) {
-      return {
-        border: "2px solid #f6c343",
-        boxShadow: "0 0 10px rgba(246,195,67,0.65)",
-      }
-    }
-  
-    if (tier.name.includes("Silver")) {
-      return {
-        border: "2px solid #bfc7d5",
-        boxShadow: "0 0 8px rgba(191,199,213,0.55)",
-      }
-    }
-  
-    return {
-      border: "2px solid #b87333",
-      boxShadow: "0 0 6px rgba(184,115,51,0.45)",
-    }
-  }
-
-  const winRate =
-    totalGame === 0 ? 0 : ((winCount / totalGame) * 100).toFixed(1)
-    const tier = getTier(maxMoney)
-    const t = TEXT[language]
-    if (page === "/privacy") {
-      return (
-        <div style={styles.page}>
-          <div style={{ ...styles.app, minHeight: "844px" }}>
-            <button style={styles.backBtn} onClick={goHome}>
-              ← Home
-            </button>
-    
-            <div style={styles.infoPage}>
-  <div style={styles.infoPageTitle}>
-    {language === "ko" ? "개인정보처리방침" : "Privacy Policy"}
-  </div>
-
-  <p>
-  {language === "ko"
-    ? "본 사이트는 사용자의 개인정보를 직접 수집하지 않습니다."
-    : "This site does not directly collect personal information."}
-</p>
-
-<p>
-  {language === "ko"
-    ? "본 사이트는 Google AdSense를 사용하며, 광고 제공을 위해 쿠키 및 웹 비콘과 같은 기술이 사용될 수 있습니다."
-    : "This site uses Google AdSense, which may use cookies and web beacons to serve ads."}
-</p>
-
-<p>
-  {language === "ko"
-    ? "Google은 사용자의 이전 방문 기록을 기반으로 맞춤 광고를 제공할 수 있습니다."
-    : "Google may use users' previous visits to provide personalized ads."}
-</p>
-
-<p>
-  {language === "ko"
-    ? "사용자는 광고 설정에서 맞춤 광고를 비활성화할 수 있습니다."
-    : "Users may opt out of personalized advertising by visiting Ads Settings."}
-</p>
-
-<p>
-  {language === "ko"
-    ? "또한 제3자 광고 공급업체가 쿠키를 사용하여 광고를 제공할 수 있습니다."
-    : "Third-party vendors may also use cookies to serve ads."}
-</p>
-
-<p>
-  {language === "ko"
-    ? "사용자는 브라우저 설정을 통해 쿠키 저장을 거부할 수 있습니다."
-    : "Users can disable cookies through their browser settings."}
-</p>
-
-<p>
-  Google Ads Policy: https://policies.google.com/technologies/ads
-</p>
-
-<p>
-  Contact: gameduckman@gmail.com
-</p>
-  <div style={styles.footerLinks}>
-  <button
-    style={styles.footerLinkBtn}
-    onClick={() => goPage("/privacy")}
-  >
-    {t.privacy}
-  </button>
-
-  <button
-    style={styles.footerLinkBtn}
-    onClick={() => goPage("/contact")}
-  >
-    {t.contact}
-  </button>
-
-  <button
-    style={styles.footerLinkBtn}
-    onClick={() => goPage("/support")}
-  >
-    {t.support}
-  </button>
-</div>
-</div>
-          </div>
-        </div>
-      )
-    }
-    
-    if (page === "/contact") {
-      return (
-        <div style={styles.page}>
-          <div style={{ ...styles.app, minHeight: "844px" }}>
-            <button style={styles.backBtn} onClick={goHome}>
-              ← Home
-            </button>
-    
-            <div style={styles.infoPage}>
-            <div style={styles.infoPageTitle}>
-  {language === "ko" ? "문의" : "Contact"}
-</div>
-
-<p>
-  {language === "ko"
-    ? "Duckpick Horse Betting Simulator 관련 문의, 오류 제보, 광고 및 기타 요청은 아래 이메일로 연락할 수 있습니다."
-    : "For questions, bug reports, advertising inquiries, or other requests related to Duckpick Horse Betting Simulator, please contact us by email."}
-</p>
-
-<p>
-  {language === "ko"
-    ? "문의 시 확인 후 가능한 범위 내에서 답변드립니다."
-    : "We will review your inquiry and respond where possible."}
-</p>
-
-<p>Email: gameduckman@gmail.com</p>
-  <div style={styles.footerLinks}>
-  <button style={styles.footerLinkBtn} onClick={() => goPage("/privacy")}>
-    {t.privacy}
-  </button>
-
-  <button style={styles.footerLinkBtn} onClick={() => goPage("/contact")}>
-    {t.contact}
-  </button>
-
-  <button style={styles.footerLinkBtn} onClick={() => goPage("/support")}>
-    {t.support}
-  </button>
-</div>
-</div>
-          </div>
-        </div>
-      )
-    }
-    
-    if (page === "/support") {
-      return (
-        <div style={styles.page}>
-          <div style={{ ...styles.app, minHeight: "844px" }}>
-            <button style={styles.backBtn} onClick={goHome}>
-              ← Home
-            </button>
-    
-            <div style={styles.infoPage}>
-            <div style={styles.infoPageTitle}>
-  {language === "ko" ? "후원" : "Support"}
-</div>
-
-  <p>
-    {language === "ko"
-      ? "이 게임이 마음에 드셨다면 후원을 통해 개발을 지원할 수 있습니다."
-      : "If you enjoy this game, you can support future updates."}
-  </p>
-
-  <p>
-  {language === "ko"
-    ? "현재 별도의 결제나 후원 기능은 제공하지 않습니다."
-    : "This site currently does not provide payment or donation features."}
-</p>
-  <div style={styles.footerLinks}>
-  <button style={styles.footerLinkBtn} onClick={() => goPage("/privacy")}>
-    {t.privacy}
-  </button>
-
-  <button style={styles.footerLinkBtn} onClick={() => goPage("/contact")}>
-    {t.contact}
-  </button>
-
-  <button style={styles.footerLinkBtn} onClick={() => goPage("/support")}>
-    {t.support}
-  </button>
-</div>
-</div>
-          </div>
-        </div>
-      )
-    }
-    return (
-      <div style={styles.page}>
-        {!isMobile && <div style={styles.sideAd}>{t.ad}</div>}
-    
-        <div
-          style={{
-            ...styles.app,
-            transform: `scale(${scale})`,
-          }}
-        >
-      {screen === "main" && (
-  <>
-    {/* 상단 정보 */}
-    <div style={styles.mainHeader}>
-  <div style={styles.row1}>
-    <div style={styles.profileRow}>
-    <div
-  style={{
-    ...styles.tierBadge,
-    ...getTierEffect(tier),
-  }}
->
-  <img
-   src={getTierImage(tier)}
-   style={{
-    width: "80%",
-    height: "80%",
-    objectFit: "contain",
-  }}
-  />
-</div>
-      <div style={styles.nicknameText}>{nickname}</div>
-      <button style={styles.editNameBtn} onClick={changeNickname}>
-        ✎
-      </button>
-    </div>
-
-    <div style={styles.rightGroup}>
-    <button style={styles.iconBtn} onClick={() => {
-  playSound("click")
-  setPopup("rule")
-}}>
-  !
-</button>
-<button style={styles.iconBtn} onClick={() => {
-  playSound("click")
-  setPopup("setting")
-}}>
-  ⚙
-</button>
-    </div>
-  </div>
-
-  <div style={styles.row2}>
-  <div
-    style={{
-      ...styles.moneyValue,
-      fontSize: getFontSizeByLength(formatMoney(money, language), 0.8),
-    }}
-  >
-<div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-  <img src={COIN_ICON} style={{ width: "18px" }} />
-  {formatMoney(money, language)}
-</div>
-  </div>
-
-  <button style={styles.resetBtn} onClick={resetData}>
-  ↻ {t.reset}
-  </button>
-</div>
-
-<div style={styles.row3}>
-  <div>
-  🔥 {currentWinStreak}{t.winStreak} · {t.winBonus}{" "}
-    <span style={styles.bonusHighlight}>
-      {Math.min(currentWinStreak * 5, 50)}%
-    </span>
-  </div>
-
-  <button
-  style={{
-    ...styles.changeCardBtn,
-    ...(money <= 100000 && {
-      background: "#555",
-      color: "#999",
-      cursor: "not-allowed",
-      opacity: 0.6,
-    }),
-  }}
-  onClick={() => {
-    if (money <= 100000) return
-    playSound("click")
-    changeCards()
-  }}
->
-  {t.change} -5%
-  </button>
-</div>
-</div>
-
-    {/* 카드 영역 */}
-{/* 카드 영역 */}
-<div style={styles.cardGrid}>
-  {cards.map((card) => (
-    <button
-      key={card.id}
-      onClick={() => {
-        playSound("click")
-        setSelectedCard(card)
-      }}
-      style={{
-        ...styles.riderCard,
-        border: selectedCard?.id === card.id
-          ? "2px solid red"
-          : "2px solid transparent",
-        boxShadow: "none",
-        boxSizing: "border-box",
-      }}
-    >
-<div style={styles.cardProfile}>
-<img
-  src={card.image}
-  style={{
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    display: "block",
-  }}
-/>
-
-  <div style={styles.cardOddsOverlay}>x{card.odds}</div>
-  <div style={styles.cardNameOverlay}>{getHorseName(card)}</div>
-</div>
-
-      <div style={styles.statLine}>{t.speed} {makeStars(card.speed)}</div>
-      <div style={styles.statLine}>{t.curve} {makeStars(card.curve)}</div>
-      <div style={styles.statLine}>{t.luck} {makeStars(card.luck)}</div>
-    </button>
-  ))}
-</div>
-
-    {/* 배팅 선택 */}
-    <div style={styles.betBox}>
-      {[10, 20, 30, 50].map((p) => (
-        <button
-          key={p}
-          onClick={() => {
-            playSound("click")
-            setBetRate(p / 100)
-          }}
-          style={{
-            ...styles.betBtn,
-            background:
-            betRate === p / 100
-              ? "linear-gradient(180deg, #f6c343 0%, #c89b2b 100%)"
-              : "#1a1a1a",
-          
-          color:
-            betRate === p / 100 ? "#111" : "#fff",
-          
-          boxShadow:
-            betRate === p / 100
-              ? "0 0 12px rgba(246,195,67,0.6)"
-              : "none",
-          }}
-        >
-          {p}%
-        </button>
-      ))}
-    </div>
-
-    {/* 금액 */}
-    <div
-  style={{
-    ...styles.betAmount,
-    fontSize: getFontSizeByLength(formatMoney(betAmount, language)).replace("px", "") * 0.6 + "px",
-  }}
->
-<div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "6px" }}>
-  {t.bettingAmount}:
-  <img src={COIN_ICON} style={{ width: "14px" }} />
-  {formatMoney(betAmount, language)}
-</div>
-</div>
-
-    {/* 시작 버튼 */}
-    <button style={styles.startBtn} onClick={startRace}>
-      {t.startRace}
-    </button>
-
-
-    {/* 하단 배너 광고 영역 */}
-    <div style={styles.adBox}>
-      {t.ad}
-    </div>
-
-    {/* 승인용 하단 정보 */}
+  const CommonFooter = () => (
     <div style={styles.siteFooter}>
-      <div style={styles.footerTitle}>
-        {t.aboutTitle}
-      </div>
-
-      <div style={styles.footerText}>
-        {t.aboutText}
-      </div>
+      <div style={styles.footerTitle}>{t.aboutTitle}</div>
+      <div style={styles.footerText}>{t.aboutText}</div>
 
       <div style={styles.footerLinks}>
-      <button
-  style={styles.footerLinkBtn}
-  onClick={() => goPage("/privacy")}
->
-  {t.privacy}
-</button>
-
-<button
-  style={styles.footerLinkBtn}
-  onClick={() => goPage("/contact")}
->
-  {t.contact}
-</button>
-
-<button
-  style={styles.footerLinkBtn}
-  onClick={() => goPage("/support")}
->
-  {t.support}
-</button>
+        <button style={styles.footerLinkBtn} onClick={() => goPage("/privacy")}>
+          {t.privacy}
+        </button>
+        <button style={styles.footerLinkBtn} onClick={() => goPage("/contact")}>
+          {t.contact}
+        </button>
+        <button style={styles.footerLinkBtn} onClick={() => goPage("/support")}>
+          {t.support}
+        </button>
       </div>
     </div>
-  </>
-)}
+  )
 
-{screen === "race" && (
-  <>
-    {/* 상단 */}
-    <div style={styles.raceHeader}>
-      <div style={styles.raceTitle}>{t.raceRunning}</div>
-      <div style={styles.roundTitle}>
-      {language === "ko" ? "라운드" : "ROUND"} {round} / 3
-</div>
-
-    </div>
-
-    {/* 🔥 트랙 박스 크게 */}
-    <div style={styles.trackContainer}>
-
-    {countdown && (
-  <div style={styles.countdownOverlay}>
-    {countdown}
-  </div>
-)}
-      {cards.map((card, index) => {
-const speedPower = (card.speed - 3) * 0.025
-const curveStable = (card.curve - 3) * 0.012
-const luckPower = (card.luck - 3) * 0.01
-
-let progress = raceProgress
-
-// 기본 속도 차이
-progress += raceProgress * speedPower
-
-// 앞뒤 흔들림
-const wave =
-  raceProgress < 0.05
-    ? 0
-    : Math.sin(raceProgress * 22 + card.id * 1.7) * (0.018 - card.curve * 0.002)
-
-progress += wave
-
-// 중반 커브 안정성
-if (raceProgress > 0.25 && raceProgress < 0.65) {
-  progress += curveStable
-}
-
-// 운 기반 순간 스퍼트
-const luckyBurst =
-  Math.sin(raceProgress * 38 + card.id * 4.3) > 0.82
-    ? 0.018 + luckPower
-    : 0
-
-progress += luckyBurst
-
-// 순간 감속
-const stumble =
-  Math.sin(raceProgress * 31 + card.id * 5.1) < -0.88
-    ? 0.012 - card.curve * 0.0015
-    : 0
-
-progress -= stumble
-
-// 마지막은 결과에 맞게 자연 보정
-if (raceProgress > 0.72) {
-  const finishPower = (raceProgress - 0.72) / 0.28
-
-  if (card.id === raceWinner.id) {
-    progress += finishPower * 0.12
-  } else {
-    progress -= finishPower * 0.04
-  }
-}
-
-progress = Math.min(1, Math.max(0, progress))
-if (countdown) {
-  progress = 0
-}
-
-        return (
-          <div
-  key={card.id}
-  style={{
-    ...styles.trackLane,
-    transform: index === 1 ? "translateY(2px)" : "none",
-  }}
->
-
-<div
-style={{
-  ...styles.horse,
-  left: `calc(5px + ${progress * 100}% - ${progress * 68}px)`,
-  transform: "translate(0%, -50%)",
-
-  border: "2px solid transparent",
-  outline:
-    selectedCard?.id === card.id
-      ? "2px solid red"
-      : "none",
-}}
->
-<img
-  src={card.image}
-  style={{
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    display: "block",
-  }}
-/>
-
+  if (page === "/privacy") {
+    return (
+      <div style={styles.page}>
+        <div style={styles.app}>
+          <button style={styles.backBtn} onClick={goHome}>← Home</button>
+          <div style={styles.infoPage}>
+            <div style={styles.infoPageTitle}>
+              {language === "ko" ? "개인정보처리방침" : "Privacy Policy"}
+            </div>
+            <p>
+              {language === "ko"
+                ? "본 사이트는 사용자의 개인정보를 직접 수집하지 않습니다."
+                : "This site does not directly collect personal information."}
+            </p>
+            <p>
+              {language === "ko"
+                ? "본 사이트는 Google AdSense를 사용할 수 있으며, 광고 제공을 위해 쿠키가 사용될 수 있습니다."
+                : "This site may use Google AdSense, which may use cookies to serve ads."}
+            </p>
+            <p>Google Ads Policy: https://policies.google.com/technologies/ads</p>
+            <p>Contact: {CONTACT_EMAIL}</p>
+            <div style={styles.footerLinks}>
+  <button style={styles.footerLinkBtn} onClick={() => goPage("/privacy")}>
+    {t.privacy}
+  </button>
+  <button style={styles.footerLinkBtn} onClick={() => goPage("/contact")}>
+    {t.contact}
+  </button>
+  <button style={styles.footerLinkBtn} onClick={() => goPage("/support")}>
+    {t.support}
+  </button>
 </div>
           </div>
-        )
-      })}
-    </div>
-    <div
-style={{
-  marginTop: "16px",
-  padding: "18px 12px",
-  borderRadius: "16px",
-  background: "linear-gradient(180deg, #202938 0%, #0d1118 100%)",
-  border: "1px solid #f6c343",
-  textAlign: "center",
-  fontWeight: "bold",
-  fontSize: "20px",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  gap: "16px",
-}}
->
-<span
-  style={{
-    ...styles.scoreName,
-    animation:
-      roundWinner?.id === cards[0].id ? "scorePop 0.45s ease" : "none",
-  }}
->
-<span style={styles.scoreName}>
-  {getHorseName(cards[0])}{" "}
-  <span style={{ color: "#ff4d4d" }}>{score.a}</span>
-</span>
-</span>
+        </div>
+      </div>
+    )
+  }
 
-<span style={styles.vsText}>VS</span>
+  if (page === "/contact") {
+    return (
+      <div style={styles.page}>
+        <div style={styles.app}>
+          <button style={styles.backBtn} onClick={goHome}>← Home</button>
+          <div style={styles.infoPage}>
+            <div style={styles.infoPageTitle}>{t.contact}</div>
+            <p>
+              {language === "ko"
+                ? `${GAME_TITLE} 관련 문의, 오류 제보, 광고 및 기타 요청은 아래 이메일로 연락할 수 있습니다.`
+                : `For questions, bug reports, advertising inquiries, or other requests related to ${GAME_TITLE}, please contact us by email.`}
+            </p>
+            <p>Email: {CONTACT_EMAIL}</p>
+            <div style={styles.footerLinks}>
+  <button style={styles.footerLinkBtn} onClick={() => goPage("/privacy")}>
+    {t.privacy}
+  </button>
+  <button style={styles.footerLinkBtn} onClick={() => goPage("/contact")}>
+    {t.contact}
+  </button>
+  <button style={styles.footerLinkBtn} onClick={() => goPage("/support")}>
+    {t.support}
+  </button>
+</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
-<span
+  if (page === "/support") {
+    return (
+      <div style={styles.page}>
+        <div style={styles.app}>
+          <button style={styles.backBtn} onClick={goHome}>← Home</button>
+          <div style={styles.infoPage}>
+            <div style={styles.infoPageTitle}>{t.support}</div>
+            <p>
+              {language === "ko"
+                ? "현재 별도의 결제나 후원 기능은 제공하지 않습니다."
+                : "This site currently does not provide payment or donation features."}
+            </p>
+            <div style={styles.footerLinks}>
+  <button style={styles.footerLinkBtn} onClick={() => goPage("/privacy")}>
+    {t.privacy}
+  </button>
+  <button style={styles.footerLinkBtn} onClick={() => goPage("/contact")}>
+    {t.contact}
+  </button>
+  <button style={styles.footerLinkBtn} onClick={() => goPage("/support")}>
+    {t.support}
+  </button>
+</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={styles.page}>
+      {!isMobile && <div style={styles.sideAd}>{t.ad}</div>}
+
+      <div style={{ ...styles.app, transform: `scale(${scale})` }}>
+        {screen === "main" && (
+          
+          <>
+<div style={styles.mainTopBar}>
+  <div style={styles.brandBox}>
+  <img
+  src="/img/logo/duckpick_logo.png"
   style={{
-    ...styles.scoreName,
-    animation:
-      roundWinner?.id === cards[1].id ? "scorePop 0.45s ease" : "none",
+    width: "34px",
+    height: "34px",
+    objectFit: "contain",
   }}
->
-<span style={styles.scoreName}>
-  <span style={{ color: "#ff4d4d" }}>{score.b}</span>{" "}
-  {getHorseName(cards[1])}
-</span>
-</span>
+/>
+  <div style={styles.brandText}>DuckPick Studio</div>
+  </div>
+
+  <div style={styles.topRightBtns}>
+  <button
+    style={styles.circleBtn}
+    onClick={() => {
+      playClick()
+      setPopup("rule")
+    }}
+  >
+    !
+  </button>
+
+  <button
+    style={styles.circleBtn}
+    onClick={() => {
+      playClick()
+      setPopup("setting")
+    }}
+  >
+    ⚙
+  </button>
+</div>
 </div>
 
-    {/* 하단 정보 */}
-    <div style={styles.raceInfoBox}>
-      <div>{t.selectedRider}: {selectedCard ? getHorseName(selectedCard) : ""}</div>
-      <div>{t.bettingAmount}:{" "}
-<img src={COIN_ICON} style={{ width: "14px", marginRight: "4px" }} />
-{formatMoney(betAmount, language)}</div>
+<div style={styles.mainHero}>
+  <div style={styles.mainBigTitle}>
+    <span style={styles.mainTitleNumber}>3</span>{t.mainTitleShort}
+  </div>
+  <div style={styles.mainTitleText}>
+    {t.mainTitleMain}
+  </div>
+  <div style={styles.mainDescText}>
+    {t.mainDesc}
+  </div>
+</div>
+
+<div style={styles.recordCard}>
+  <div style={styles.recordIcon}>🏆</div>
+
+  <div style={styles.recordTextBox}>
+    <div style={styles.recordLabel}>
+      {t.bestScoreLabel}
     </div>
 
-    {/* 광고 */}
-    <div style={styles.adBox}>
-    {t.ad}
+    <div style={styles.recordValue}>
+      {bestScore}
+      <span style={styles.recordUnit}> {t.stage}</span>
     </div>
-  </>
-)}
-{screen === "share" && (
+  </div>
+</div>
+
+<button style={styles.startBtnYellow} onClick={startGame}>
+{t.start}
+</button>
+
+            <div style={styles.adBox}>{t.ad}</div>
+            <CommonFooter />
+          </>
+        )}
+
+{screen === "memorize" && (
   <>
-    <div style={styles.shareWrap}>
-      <div style={styles.shareTitle}>{t.myRecordCard}</div>
-
-      <div
-  ref={shareCardRef}
-  style={{
-    ...styles.shareCard,
-    ...getTierEffect(tier),
-  }}
->
-        <div style={{ ...styles.shareTier, color: tier.color }}>
-          {tier.name}
-        </div>
-
-        <div
-  style={{
-    ...styles.shareHorse,
-    borderRadius: "18px",
-    padding: "10px",
-  }}
->
+    <div style={styles.memorizeWrap}>
+      <div style={styles.topBar}>
+        <div style={styles.topLeft}>
+        <div style={styles.topBrand}>
   <img
-  src={getTierImage(tier)}
+    src="/img/logo/duckpick_logo.png"
     style={{
-      width: "100px",
-      height: "100px",
+      width: "24px",
+      height: "24px",
       objectFit: "contain",
     }}
   />
+
+  <span>DuckPick</span>
 </div>
-
-<div style={styles.shareNickname}>{nickname}</div>
-
-<div style={{ fontSize: "12px", color: "#aaa", marginTop: "6px" }}>
-  {language === "ko" ? "최대 자산" : "Max Asset"}
-</div>
-
-<div
-  style={{
-    ...styles.shareBigMoney,
-    fontSize: getFontSizeByLength(formatMoney(maxMoney, language)),
-  }}
->
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: "6px",
-    }}
-  >
-    <img src={COIN_ICON} style={{ width: "18px" }} />
-    {formatMoney(maxMoney, language)}
-  </div>
-</div>
-
-        <div style={styles.shareStats}>
-          <div>{t.bestStreak}: {maxWinStreak}</div>
-          <div>{t.winRate}: {winRate}%</div>
-          <div>{t.totalWin}: {winCount}</div>
         </div>
-
-        <div style={styles.shareFooter}>
-          Horse Betting Simulator
+        <div style={styles.topRight}>
+          {t.stage} {stage}
         </div>
       </div>
 
-      <div style={styles.resultButtonRow}>
-      <button
-  style={styles.shareBtn}
-  onClick={() => {
-    playSound("click")
-    saveShareImage()
-  }}
->
-{t.saveImage}
-  </button>
-
-  <button
-  style={styles.shareBtn}
-  onClick={() => {
-    playSound("click")
-    shareTextResult()
-  }}
->
-  {language === "ko" ? "링크 공유" : "Share Link"}
-</button>
-
-  <button
-  style={styles.nextBtn}
-  onClick={() => {
-    playSound("click")
-    nextRound()
-  }}
->
-{t.main}
-  </button>
-</div>
-    </div>
-  </>
-)}
-
-{screen === "result" && result && (
-  <>
-    <div style={styles.resultWrap}>
-      
-      {/* 결과 타이틀 */}
-      <div
-        style={
-          result.isWin ? styles.winBigTitle : styles.loseBigTitle
-        }
-      >
-       {result.isWin ? t.win : t.lose}
-
-      </div>
-
-      {/* 말 */}
-      <div
-  style={{
-    ...styles.resultHorse,
-    animation: result.isWin ? "pop 0.4s ease" : "none",
-    border: result.isWin ? "3px solid #f6c343" : "none",
-    borderRadius: "12px",
-    display: "inline-block",
-    padding: "0",          // 🔥 여백 제거
-    width: "160px",        // 🔥 고정 크기
-    height: "160px",
-    overflow: "hidden",
-    background: "#fff",    // 🔥 흰 배경
-  }}
->
-  <img
-    src={result.selectedCard.image}
-    style={{
-      width: "100%",
-      height: "100%",
-      objectFit: "cover",  // 🔥 꽉 채우기
-      display: "block",
-    }}
-  />
-  {isNewRecord && (
-  <div
-    style={{
-      position: "absolute",
-      top: "6px",
-      right: "6px",
-      background: "rgba(255,0,0,0.85)",
-      color: "#fff",
-      padding: "4px 8px",
-      borderRadius: "8px",
-      fontSize: "12px",
-      fontWeight: "bold",
-      zIndex: 10,
-      boxShadow: "0 0 10px rgba(255,0,0,0.6)"
-    }}
-  >
-{t.newRecord}
-  </div>
-)}
-</div>
-
-      {/* 우승 말 */}
-      <div style={styles.resultName}>
-      {getHorseName(result.selectedCard)}
-      </div>
-
-      {/* 금액 */}
-      <div
-  style={{
-    ...(result.isWin ? styles.winMoney : styles.loseMoney),
-    fontSize: getFontSizeByLength(
-      formatMoney(displayProfit, language)
-    ),
-  }}
->
-<img src={COIN_ICON} style={{ width: "20px", marginRight: "6px" }} />
-{result.isWin ? "+" : "-"}
-{formatMoney(displayProfit, language)}
-</div>
-
-{/* 현재 자산 */}
-<div
-  style={{
-    ...styles.resultSub,
-    marginTop: "8px"
-  }}
->
-  {t.currentAsset}: {formatMoney(result.money, language)}
-</div>
-
-      {/* 파산 */}
-      {result.restarted && (
-        <div style={styles.restartBox}>
-       {t.bankrupt}
-        </div>
-      )}
-
-{/* 버튼 */}
-<div style={styles.resultActionBox}>
-{result.canRevive && (
-  <button
-    style={{
-      ...styles.nextBtn,
-      background: "#f6c343",
-      color: "#111",
-      fontWeight: "bold",
-    }}
-    onClick={() => {
-      playSound("click")
-      handleRevive()
-    }}
-  >
-    {t.revive}
-  </button>
-)}
-
-  <button
-    style={{
-      ...styles.nextBtn,
-      fontSize: "18px",
-      fontWeight: "bold",
-    }}
-    onClick={() => {
-      playSound("click")
-      nextRound()
-    }}
-  >
-    {t.next}
-  </button>
-
-  <button
-    style={styles.shareBtn}
-    onClick={() => {
-      playSound("click")
-      localStorage.setItem(LAST_SCREEN_KEY, "share")
-      setScreen("share")
-    }}
-  >
-    {t.share}
-  </button>
-</div>
-  {/* 하단 배너 광고 */}
-<div style={styles.adBox}>
-  {t.ad}
-</div>
-
-    </div>
-  </>
-  
-)}
-
-{tierUpInfo && (
-  <div style={styles.popupDim}>
-    <div style={styles.tierUpBox}>
-      <div style={styles.tierUpTitle}>
-        {language === "ko" ? "🎉 승급!" : "🎉 Tier Up!"}
-      </div>
-
-      <div style={styles.tierUpImages}>
-        <div style={styles.tierUpItem}>
-          <img
-            src={getTierImage(tierUpInfo.prevTier)}
-            style={styles.tierUpIcon}
-          />
-          <div>{tierUpInfo.prevTier.name}</div>
-        </div>
-
-        <div style={styles.tierUpArrow}>→</div>
-
-        <div style={styles.tierUpItem}>
-          <img
-            src={getTierImage(tierUpInfo.nextTier)}
-            style={styles.tierUpIcon}
-          />
-          <div style={{ color: tierUpInfo.nextTier.color }}>
-            {tierUpInfo.nextTier.name}
-          </div>
-        </div>
-      </div>
-
-      <div style={styles.tierUpText}>
-        {language === "ko"
-          ? "최대 자산 신기록 달성!"
-          : "New max asset record achieved!"}
-      </div>
-
-      <button
-  style={styles.shareBtn}
-  onClick={() => {
-    playSound("click")
-    setTierUpInfo(null)
-    localStorage.setItem(LAST_SCREEN_KEY, "share")
-    setScreen("share")
-  }}
->
-{t.share}
-</button>
-
-<button
-  style={styles.nextBtn}
-  onClick={() => {
-    playSound("click")
-    setTierUpInfo(null)
-  }}
->
-{language === "ko" ? "확인" : "OK"}
-</button>
-    </div>
-  </div>
-)}
-
-{popup && (
-  <div style={styles.popupDim}>
-    <div style={styles.popupBox}>
-      <div style={styles.popupTitle}>
-      {popup === "rule" ? t.rule : t.setting}
-      </div>
-
-      <div style={styles.popupText}>
-      {popup === "rule" ? (
-  <>
-    {t.rules.map((rule) => (
-      <div key={rule}>{rule}</div>
-    ))}
-  </>
-) : popup === "privacy" ? (
-  <>
-    <div>
-      본 사이트는 사용자 데이터를 직접 수집하지 않습니다.
-    </div>
-    <div>
-      Google AdSense를 사용하며 쿠키가 사용될 수 있습니다.
-    </div>
-    <div>
-      https://policies.google.com/technologies/ads
-    </div>
-    <div>
-      문의: gameduckman@gmail.com
-    </div>
-  </>
-) : popup === "contact" ? (
-  <>
-    <div>Email: gameduckman@gmail.com</div>
-  </>
-) : popup === "support" ? (
-  <>
-    <div>Support this game</div>
-    <div>Buy me a coffee</div>
-  </>
-) : (
-<>
-<button
-  style={styles.popupBtn}
-  onClick={() => {
-    playSound("click")
-    changeNickname()
-  }}
->
-{t.nicknameChange}
-  </button>
-
-  <button
-  style={styles.popupBtn}
-  onClick={() => {
-    playSound("click")
-    resetData()
-  }}
->
-{t.recordReset}
-  </button>
-
-  <button
-    style={styles.popupBtn}
-    onClick={async () => {
-      playSound("click")
-
-      if (installPrompt) {
-        installPrompt.prompt()
-        await installPrompt.userChoice
-        setInstallPrompt(null)
-        return
-      }
-
-      alert(
-        language === "ko"
-          ? "브라우저 메뉴에서 '홈 화면에 추가'를 선택하세요."
-          : "Use your browser menu and choose 'Add to Home Screen'."
-      )
-    }}
-  >
-    {language === "ko" ? "홈화면 추가" : "Add to Home"}
-  </button>
-
-  <div style={styles.settingRow}>
-  {t.sound}
-    <button
-  onClick={() => {
-    playSound("click")
-    setSoundOn(!soundOn)
-  }}
-  style={{
-    background: soundOn ? "#28a745" : "#222",
-    color: "#fff",
-    border: "none",
-    padding: "6px 12px",
-    borderRadius: "6px",
-    fontWeight: "bold",
-  }}
->
-  {soundOn ? "ON" : "OFF"}
-</button>
+      <div style={styles.timerWrap}>
+  <div style={styles.timerText}>
+    ⏱ {timeLeft}s
   </div>
 
-  <div style={styles.settingRow}>
-  {t.bgm}
-    <button
-  onClick={() => {
-    playSound("click")
-    setBgmOn(!bgmOn)
-  }}
-  style={{
-    background: bgmOn ? "#28a745" : "#222",
-    color: "#fff",
-    border: "none",
-    padding: "6px 12px",
-    borderRadius: "6px",
-    fontWeight: "bold",
-  }}
->
-  {bgmOn ? "ON" : "OFF"}
-</button>
-  </div>
-
-  <div style={styles.settingRow}>
-  {t.language}
-  <button
-  onClick={() => {
-    playSound("click")
-    setLanguage(language === "ko" ? "en" : "ko")
-  }}
-  style={{
-    background: "#222",
-    color: "#f6c343",
-    border: "1px solid #444",
-    padding: "6px 12px",
-    borderRadius: "6px",
-    fontWeight: "bold",
-  }}
->
-{language === "ko" ? "한국어 🇰🇷" : "English 🇺🇸"}
-</button>
-</div>
-  <div style={styles.settingRow}>
-  {t.volume}
-    <input
-      type="range"
-      min="0"
-      max="1"
-      step="0.1"
-      value={volume}
-      onChange={(e) => setVolume(Number(e.target.value))}
+  <div style={styles.timerBarBg}>
+    <div
+      style={{
+        ...styles.timerBar,
+        width: `${(timeLeft / GAME_CONFIG.memorizeSeconds) * 100}%`,
+      }}
     />
   </div>
-</>
+</div>
+
+<div
+style={{
+  ...styles.cardRow,
+}}
+>
+        {cards.map((c) => (
+          <div
+            key={c.id}
+            style={{
+              ...(hideCards ? styles.cardBoxHidden : styles.cardBox),
+            }}
+          >
+<span
+style={{
+  fontSize: `${language === "en" ? 40 : 42}px`,
+  fontWeight: "900",
+  color: COLOR_HEX[c.color] ?? "#333",
+  fontFamily: "Pretendard, sans-serif",
+  transform: `
+  scale(${c.scale ?? 1})
+  rotate(${c.rotate ?? 0}deg)
+`,
+
+  maxWidth: "85px",
+  textAlign: "center",
+  display: "block",
+
+  whiteSpace: language === "en" ? "nowrap" : "normal",
+  wordBreak: "keep-all",
+  overflowWrap: "normal",
+}}
+>
+  {c.type === "number" && c.value}
+  {c.type === "alphabet" && c.value}
+</span>
+          </div>
+        ))}
+        </div>
+  
+        <div style={styles.memoBox}>
+  {t.memo}
+</div>
+      </div>
+    </>
+  )}
+
+
+{screen === "question" && question && (
+  <>
+<div style={styles.questionWrap}>
+
+<div style={styles.topBar}>
+  <div style={styles.topLeft}>
+  <div style={styles.topBrand}>
+  <img
+    src="/img/logo/duckpick_logo.png"
+    style={{
+      width: "24px",
+      height: "24px",
+      objectFit: "contain",
+    }}
+  />
+
+  <span>DuckPick</span>
+</div>
+  </div>
+  <div style={styles.topRight}>
+    {t.stage} {stage}
+  </div>
+</div>
+  
+<div style={styles.timerWrap}>
+  <div style={styles.timerText}>
+    ⏱ {questionTimeLeft}s
+  </div>
+
+  <div style={styles.timerBarBg}>
+    <div
+      style={{
+        ...styles.timerBar,
+        width: `${(questionTimeLeft / GAME_CONFIG.questionSeconds) * 100}%`,
+      }}
+    />
+  </div>
+</div>
+
+<div style={styles.questionTitle}>{t.questionLabel}</div>
+
+<div style={styles.questionText}>
+  {question.text}
+</div>
+
+<div
+style={{
+  ...styles.cardRow,
+}}
+>
+  {questionCards.map((c) => (
+    <div key={c.id} style={styles.cardBoxHidden}>
+      <span style={styles.cardIcon}>?</span>
+    </div>
+  ))}
+</div>
+
+  <div style={styles.optionBox}>
+        {options.map((opt, idx) => (
+          <button
+  key={idx}
+  style={{
+    ...styles.optionBtn,
+    transform: selectedAnswer === opt ? "scale(0.95)" : "scale(1)",
+    background:
+      selectedAnswer !== null
+        ? opt === question.answer
+          ? "linear-gradient(180deg, #4cd964, #2ecc71)" // 정답 초록
+          : opt === selectedAnswer
+          ? "linear-gradient(180deg, #ff5e57, #e74c3c)" // 오답 빨강
+          : styles.optionBtn.background
+        : styles.optionBtn.background,
+    color:
+      selectedAnswer !== null &&
+      (opt === question.answer || opt === selectedAnswer)
+        ? "#111"
+        : "#fff",
+  }}
+  onClick={() => {
+    if (answerLocked) return
+  
+    setAnswerLocked(true)
+    setSelectedAnswer(opt)
+
+    if (opt === question.answer) {
+      playCorrect()
+      const nextStage = stage + 1
+      const clearStage = stage
+    
+      setLastScore(clearStage)
+      setBestScore((prev) => Math.max(prev, clearStage))
+    
+      setStage(nextStage)
+      setSelectedAnswer(null)
+      setAnswerLocked(true)
+      setScreen("success")
+    } else {
+      playWrong()
+      setQuestionTimeLeft(0)
+      setAnswerLocked(true)
+      setLastScore(Math.max(0, stage - 1))
+      setBestScore((prev) => Math.max(prev, Math.max(0, stage - 1)))
+      setSelectedAnswer(opt)
+      setScreen("result")
+    }
+            }}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+
+    </div>
+  </>
+)}
+
+{screen === "success" && (
+  <>
+    <div style={styles.resultWrap}>
+      <div style={styles.topBar}>
+        <div style={styles.topLeft}><div style={styles.topBrand}>
+  <img
+    src="/img/logo/duckpick_logo.png"
+    style={{
+      width: "24px",
+      height: "24px",
+      objectFit: "contain",
+    }}
+  />
+
+  <span>DuckPick</span>
+</div></div>
+        <div style={styles.topRight}>{t.stage} {stage - 1}</div>
+      </div>
+
+      <div style={styles.successText}>
+        {t.success}
+      </div>
+
+      <div style={styles.successEmoji}>
+      <img
+  src="/img/duck/duck_success.png"
+  style={{
+    width: "120px",
+    height: "120px",
+    objectFit: "cover",
+    borderRadius: "20px",
+  }}
+/>
+</div>
+
+      <div style={styles.successBox}>
+        {stage - 1}{t.stage} {t.successDone}
+      </div>
+
+      <button
+        style={styles.resultPrimaryBtn}
+        onClick={() => {
+          const newCards = generateCards(stage)
+          setCards(newCards)
+          setQuestionCards([])
+          setHideCards(false)
+          setQuestion(null)
+          setOptions([])
+          setSelectedAnswer(null)
+          setTimeLeft(GAME_CONFIG.memorizeSeconds)
+          setQuestionTimeLeft(0)
+          setAnswerLocked(false)
+          setScreen("memorize")
+        }}
+      >
+        {t.next}
+      </button>
+    </div>
+  </>
+)}
+
+{screen === "result" && (
+  <>
+    <div style={styles.resultWrap}>
+      <div style={styles.topBar}>
+        <div style={styles.topLeft}><div style={styles.topBrand}>
+  <img
+    src="/img/logo/duckpick_logo.png"
+    style={{
+      width: "24px",
+      height: "24px",
+      objectFit: "contain",
+    }}
+  />
+
+  <span>DuckPick</span>
+</div></div>
+        <div style={styles.topRight}>{t.result}</div>
+      </div>
+
+      {!reviewMode ? (
+        <>
+          <div style={styles.resultMainText}>
+            {t.fail}
+          </div>
+
+          <div style={styles.resultDuck}>
+          <img
+  src="/img/duck/duck_fail.png"
+  style={{
+    width: "120px",
+    height: "120px",
+    objectFit: "cover",
+    borderRadius: "20px",
+  }}
+/>
+</div>
+
+          <div style={styles.resultInfoBox}>
+            <div style={styles.resultInfoRow}>
+              <span>{t.reachedStage}</span>
+              <strong style={{ color: "#ff6b6b", fontSize: "18px" }}>
+  {Math.max(0, stage - 1)}{t.stage}
+</strong>
+            </div>
+
+            <div style={styles.resultInfoRow}>
+              <span>{t.bestScoreLabel}</span>
+              <strong>{bestScore}{t.stage}</strong>
+            </div>
+
+            <div style={styles.resultDivider} />
+
+            <div style={styles.resultInfoRow}>
+              <span>{t.correct}</span>
+              <strong style={{ color: "#ffd447", fontSize: "18px" }}>
+  {question?.answer ?? "-"}
+</strong>
+            </div>
+
+            <div style={styles.resultInfoRow}>
+              <span>{t.selected}</span>
+              <strong style={{ color: "#ff6b6b", fontSize: "18px" }}>
+  {selectedAnswer ?? "-"}
+</strong>
+            </div>
+          </div>
+
+          <button
+            style={styles.reviewBtn}
+            onClick={() => {
+              playClick()
+              setReviewMode(true)
+            }}
+          >
+            {t.cardReview}
+          </button>
+
+          <div style={styles.resultButtonRow}>
+            <button
+              style={styles.resultHalfBtnYellow}
+              onClick={() => {
+                playClick()
+                setStage(GAME_CONFIG.startStage)
+                setCards([])
+                setQuestionCards([])
+                setQuestion(null)
+                setOptions([])
+                setSelectedAnswer(null)
+                setAnswerLocked(false)
+                setHideCards(false)
+                setReviewMode(false)
+                setTimeLeft(GAME_CONFIG.memorizeSeconds)
+                setQuestionTimeLeft(0)
+                setScreen("main")
+              }}
+            >
+              {t.retry}
+            </button>
+
+            <button
+              style={styles.resultHalfBtnDark}
+              onClick={() => {
+                playClick()
+                shareTextResult()
+              }}
+            >
+              {t.share}
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={styles.questionTitle}>{t.questionLabel}</div>
+
+<div style={styles.questionText}>
+  {question?.text}
+</div>
+
+<div
+style={{
+  ...styles.cardRow,
+}}
+>
+  {questionCards.map((c) => (
+    <div key={c.id} style={styles.cardBox}>
+<span
+style={{
+  fontSize: `${language === "en" ? 40 : 42}px`,
+  fontWeight: "900",
+  color: COLOR_HEX[c.color] ?? "#333",
+  fontFamily: "Pretendard, sans-serif",
+  transform: `
+  scale(${c.scale ?? 1})
+  rotate(${c.rotate ?? 0}deg)
+`,
+
+  maxWidth: "85px",
+  textAlign: "center",
+  display: "block",
+
+  whiteSpace: language === "en" ? "nowrap" : "normal",
+  wordBreak: "keep-all",
+  overflowWrap: "normal",
+}}
+>
+  {c.type === "number" && c.value}
+  {c.type === "alphabet" && c.value}
+</span>
+    </div>
+  ))}
+</div>
+
+<button
+  style={styles.resultPrimaryBtn}
+            onClick={() => {
+              playClick()
+              setReviewMode(false)
+            }}
+          >
+            {t.confirm}
+          </button>
+        </>
+      )}
+
+      <div style={styles.adBox}>{t.ad}</div>
+    </div>
+  </>
+)}
+
+        {popup && (
+          <div style={styles.popupDim}>
+            <div style={styles.popupBox}>
+              <div style={styles.popupTitle}>
+                {popup === "rule" ? t.rule : t.setting}
+              </div>
+
+              <div style={styles.popupText}>
+                {popup === "rule" ? (
+                  <>
+                    {t.rules.map((rule) => (
+                      <div key={rule}>{rule}</div>
+                    ))}
+                  </>
+                ) : (
+                  <>
+
+                    <button style={styles.popupBtn} onClick={() => { playClick(); resetData() }}>
+                      {t.recordReset}
+                    </button>
+
+                    <button
+                      style={styles.popupBtn}
+                      onClick={async () => {
+                        playClick()
+                        if (installPrompt) {
+                          installPrompt.prompt()
+                          await installPrompt.userChoice
+                          setInstallPrompt(null)
+                          return
+                        }
+
+                        alert(
+                          language === "ko"
+                            ? "브라우저 메뉴에서 '홈 화면에 추가'를 선택하세요."
+                            : "Use your browser menu and choose 'Add to Home Screen'."
+                        )
+                      }}
+                    >
+                      {language === "ko" ? "홈화면 추가" : "Add to Home"}
+                    </button>
+
+                    <div style={styles.settingRow}>
+                      {t.sound}
+                      <button
+                        onClick={() => { playClick(); setSoundOn(!soundOn) }}
+                        style={soundOn ? styles.onBtn : styles.offBtn}
+                      >
+                        {soundOn ? "ON" : "OFF"}
+                      </button>
+                    </div>
+
+                    <div style={styles.settingRow}>
+                      {t.bgm}
+                      <button
+                        onClick={() => { playClick(); setBgmOn(!bgmOn) }}
+                        style={bgmOn ? styles.onBtn : styles.offBtn}
+                      >
+                        {bgmOn ? "ON" : "OFF"}
+                      </button>
+                    </div>
+
+                    <div style={styles.settingRow}>
+                      {t.language}
+                      <button
+                        onClick={() => { playClick(); setLanguage(language === "ko" ? "en" : "ko") }}
+                        style={styles.langBtn}
+                      >
+                        {language === "ko" ? "한국어 🇰🇷" : "English 🇺🇸"}
+                      </button>
+                    </div>
+
+                    <div style={styles.settingRow}>
+                      {t.volume}
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={volume}
+                        onChange={(e) => setVolume(Number(e.target.value))}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <button style={styles.popupCloseBtn} onClick={() => { playClick(); setPopup(null) }}>
+                {t.close}
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
-      <button
-  style={styles.popupCloseBtn}
-  onClick={() => {
-    playSound("click")
-    setPopup(null)
-  }}
->
-{t.close}
-</button>
+      {!isMobile && <div style={styles.sideAd}>{t.ad}</div>}
     </div>
-  </div>
-)}
-    </div>
-
-{!isMobile && <div style={styles.sideAd}>{t.ad}</div>}
-</div>
-)
+  )
 }
 
 const styles = {
+  memorizeWrap: {
+    textAlign: "center",
+    marginTop: "18px",
+  },
+  
+  memorizeTimer: {
+    marginBottom: "20px",
+  },
+
+  timerWrap: {
+    marginBottom: "20px",
+  },
+  
+  timerText: {
+    fontSize: "14px",
+    color: "#f6c343",
+    marginBottom: "6px",
+  },
+  
+  timerBarBg: {
+    width: "100%",
+    height: "10px",
+    background: "#222",
+    borderRadius: "10px",
+    overflow: "hidden",
+  },
+  
+  timerBar: {
+    height: "100%",
+    background: "linear-gradient(90deg, #ffd84d, #f6c343)",
+    transition: "width 0.9s linear",
+  },
+  
+  cardRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: "30px",
+    margin: "0 auto",
+  },
+  cardBox: {
+    width: "90px",
+    height: "120px",
+    borderRadius: "12px",
+    background: "#FFFFFF",
+    border: "1px solid rgba(255,255,255,0.16)",
+    boxShadow: "0 10px 22px rgba(0,0,0,0.4)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardBoxHidden: {
+    width: "90px",
+    height: "120px",
+    borderRadius: "12px",
+    background: "linear-gradient(180deg, #f5f5f5, #dcdcdc)",
+    border: "1px solid rgba(255,255,255,0.7)",
+    opacity: 1,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  
+  cardIcon: {
+    fontSize: "44px",
+    color: "#777",
+    fontWeight: "900",
+  },
   page: {
     width: "100vw",
     minHeight: "100vh",
@@ -2317,7 +1768,7 @@ const styles = {
     justifyContent: "center",
     alignItems: "flex-start",
     color: "white",
-    fontFamily: "Arial, sans-serif",
+    fontFamily: "Pretendard, sans-serif",
   },
 
   app: {
@@ -2327,10 +1778,12 @@ const styles = {
     flexShrink: 0,
     minHeight: "844px",
     transformOrigin: "top center",
-    background: "linear-gradient(180deg, #111820 0%, #050608 100%)",
-    padding: "10px",
+    background: "radial-gradient(circle at top, #222b48 0%, #10131f 42%, #050608 100%)",
+    padding: "18px",
     boxSizing: "border-box",
+    overflow: "hidden",
   },
+
   mainHeader: {
     marginBottom: "10px",
     padding: "10px",
@@ -2353,17 +1806,16 @@ const styles = {
     gap: "8px",
   },
 
-  tierBadge: {
-    width: "24px",
-    height: "24px",
-    borderRadius: "6px", 
+  logoBox: {
+    width: "28px",
+    height: "28px",
+    borderRadius: "8px",
+    background: "#f6c343",
     color: "#111",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    fontSize: "10px",
     fontWeight: "bold",
-    flexShrink: 0,
   },
 
   nicknameText: {
@@ -2389,43 +1841,32 @@ const styles = {
   },
 
   iconBtn: {
-    width: "26px",
-    height: "26px",
+    width: "28px",
+    height: "28px",
     borderRadius: "50%",
     border: "1px solid #555",
     background: "#1a1a1a",
     color: "#fff",
     fontSize: "14px",
-    display: "flex",              // 추가
-    alignItems: "center",         // 추가
-    justifyContent: "center",     // 추가
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   row2: {
     display: "flex",
     alignItems: "center",
     marginTop: "10px",
-    justifyContent: "flex-start", // 🔥 왼쪽 정렬
+    justifyContent: "space-between",
   },
 
-  moneyLabel: {
-    fontSize: "13px",
-    color: "#aaa",
-  },
-
-  moneyValue: {
-    fontSize: "24px",
-    flex: 1,
-    minWidth: 0,
-    textAlign: "left", // 🔥 추가
-    fontWeight: "bold",
+  scoreText: {
+    fontSize: "15px",
     color: "#f6c343",
-    whiteSpace: "nowrap",
+    fontWeight: "bold",
   },
 
   resetBtn: {
-    flexShrink: 0,
-    marginLeft: "10px",
     border: "1px solid #444",
     background: "#1a1a1a",
     color: "#f6c343",
@@ -2434,100 +1875,50 @@ const styles = {
     fontSize: "13px",
     fontWeight: "bold",
   },
-  row3: {
-    marginTop: "6px",
-    fontSize: "14px",
-    color: "#fff",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
 
-  bonusHighlight: {
-    color: "#f6c343",
-  },
-
-  cardGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "10px",
-    marginTop: "10px",
-  },
-
-  riderCard: {
-    position: "relative",
+  gameBox: {
+    marginTop: "18px",
+    padding: "28px 16px",
+    borderRadius: "18px",
     background: "linear-gradient(180deg, #202938 0%, #0d1118 100%)",
-    color: "white",
-    borderRadius: "14px",
-    padding: "10px",
-    textAlign: "left",
-    transform: "none",
-  },
-
-  cardProfile: {
-    position: "relative",
-    height: "150px",
-
-    borderRadius: "12px",
-    overflow: "hidden",
-    marginBottom: "8px",
-    background: "#fff", // 🔥 전부 흰색
-  },
-
-
-
-  cardNameOverlay: {
-    zIndex: 5,
-    position: "absolute",
-    left: "6px",
-    bottom: "6px",
-    padding: "4px 8px",
-    borderRadius: "8px",
-    background: "rgba(0,0,0,0.65)",
-    color: "#fff",
-    fontSize: "13px",
-    fontWeight: "bold",
-  },
-
-
-
-  statLine: {
-    fontSize: "12px",
-    color: "#f6c343",
-    marginTop: "3px",
-  },
-
-  betBox: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginTop: "10px",
-  },
-
-  betBtn: {
-    flex: 1,
-    margin: "0 4px",
-    padding: "10px 0",
-    borderRadius: "10px",
-    border: "1px solid #444",
-    color: "#fff",
-    cursor: "pointer",
-    fontWeight: "bold",
-    fontSize: "16px", // 🔥 추가
-    background: "#1a1a1a",
-  },
-
-  betAmount: {
+    border: "1px solid #2f3a4a",
     textAlign: "center",
-    marginTop: "10px",
-    fontSize: "clamp(10px, 3vw, 16px)", // ↓ 줄임
+  },
+
+  gameTitle: {
+    fontSize: "30px",
     fontWeight: "bold",
     color: "#f6c343",
-    whiteSpace: "nowrap",
+    marginBottom: "10px",
+  },
+
+  stageText: {
+    fontSize: "14px",
+    color: "#aaa",
+    marginTop: "6px",
+  },
+
+  gameSubtitle: {
+    fontSize: "15px",
+    color: "#ccc",
+  },
+  startBtnYellow: {
+    width: "100%",
+    marginTop: "40px",
+    padding: "20px",
+    borderRadius: "18px",
+    background: "linear-gradient(180deg, #ffd84d, #f6c343)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    color: "#1f2430",
+    fontSize: "20px",
+    fontWeight: "800",
+    cursor: "pointer",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.18)",
   },
 
   startBtn: {
     width: "100%",
-    marginTop: "10px",
+    marginTop: "14px",
     padding: "16px",
     borderRadius: "14px",
     background: "linear-gradient(180deg, #38d85a 0%, #138528 100%)",
@@ -2537,87 +1928,6 @@ const styles = {
     fontWeight: "bold",
     cursor: "pointer",
     boxShadow: "0 0 18px rgba(40,167,69,0.45)",
-    textShadow: "0 2px 8px rgba(0,0,0,0.9)",
-  },
-
-  raceHeader: {
-    textAlign: "center",
-    paddingTop: "12px",
-    marginBottom: "18px",
-  },
-
-  raceTitle: {
-    fontSize: "22px",
-    fontWeight: "bold",
-  },
-
-  raceTime: {
-    fontSize: "32px",
-    fontWeight: "bold",
-    marginTop: "8px",
-  },
-
-  trackContainer: {
-    position: "relative",
-    marginTop: "10px",
-    padding: "0px",
-    height: "200px",
-  
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",   // 🔥 이거 추가 (핵심)
-  
-    borderRadius: "16px",
-    overflow: "hidden",
-  
-    backgroundImage: "url('/img/track/track1.png')",
-    backgroundSize: "100% 100%",
-    backgroundPosition: "center",
-    backgroundRepeat: "no-repeat",
-  
-    border: "2px solid #f6c343",
-  },
-
-
-  trackLane: {
-    position: "relative",
-    height: "50px",   // 🔥 60 → 50
-    margin: "7px 0",  // 🔥 5 → 3
-  },
-
-  trackLine: {
-    position: "absolute",
-    left: "54px",
-    right: "12px",
-    top: "50%",
-    height: "5px",
-    background: "rgba(255,255,255,0.2)",
-    borderRadius: "10px",
-    transform: "translateY(-50%)",
-  },
-
-  horse: {
-    zIndex: 2,
-    position: "absolute",
-    top: "50%",
-    transform: "translate(-50%, -50%)",
-    width: "54px",
-    height: "54px",
-    overflow: "hidden",
-    borderRadius: "10px",
-    background: "#fff",
-    transition: "left 0.05s linear",
-  },
-
-
-  raceInfoBox: {
-    marginTop: "14px",
-    border: "1px solid #333",
-    borderRadius: "12px",
-    padding: "14px",
-    textAlign: "center",
-    color: "#ccc",
-    lineHeight: "1.8",
   },
 
   adBox: {
@@ -2631,6 +1941,7 @@ const styles = {
     color: "#777",
     fontSize: "14px",
   },
+
   sideAd: {
     width: "160px",
     height: "600px",
@@ -2645,121 +1956,130 @@ const styles = {
     fontSize: "14px",
     flexShrink: 0,
   },
-
-  resultWrap: {
-    textAlign: "center",
-    paddingTop: "40px",
-    background:
-      "linear-gradient(180deg, #111 0%, #050505 100%)",
+  resultBigIcon: {
+    fontSize: "64px",
+    marginBottom: "10px",
   },
-  winBigTitle: {
+  
+  resultMainText: {
     fontSize: "42px",
-    color: "#ffd84d",
-    fontWeight: "bold",
-    textShadow: "0 0 18px rgba(255,216,77,0.8)",
+    fontWeight: "900",
+    color: "#ff5e57",
+    marginBottom: "16px",  // ← 여기 핵심 (기존 10 → 16)
+    textShadow: "0 4px 12px rgba(255,94,87,0.4)",
   },
-
-  loseBigTitle: {
-    fontSize: "42px",
-    color: "#ff4d4d",
-    fontWeight: "bold",
-    textShadow: "0 0 18px rgba(255,77,77,0.8)",
+  resultFailTitle: {
+    fontSize: "32px",
+    marginBottom: "10px",
   },
-
-  resultHorse: {
-    position: "relative",
-    margin: "20px 0",
-  },
-
-  resultName: {
-    fontSize: "22px",
-    marginTop: "-10px", 
+  
+  resultStageText: {
+    fontSize: "20px",
     marginBottom: "6px",
   },
-
-  winMoney: {
-    fontSize: "clamp(14px, 5vw, 34px)", // 🔥 자동 축소
-    color: "#ffd84d",
-    fontWeight: "bold",
-    textShadow: "0 0 16px rgba(255,216,77,0.8)",
-    whiteSpace: "nowrap",
-    marginTop: "10px",   // ← 추가
+  
+  resultBestText: {
+    fontSize: "16px",
+    color: "#aaa",
+    marginBottom: "20px",
+  },
+  
+  resultInfoText: {
+    marginBottom: "20px",
+  },
+  
+  resultSelectedText: {
+    marginBottom: "30px",
   },
 
-  loseMoney: {
-    fontSize: "34px",
-    color: "#ff4d4d",
+  resultStageBox: {
+    marginTop: "20px",
+    marginBottom: "10px",
+  },
+  
+  resultStageValue: {
+    fontSize: "52px",
     fontWeight: "bold",
-    textShadow: "0 0 16px rgba(255,77,77,0.8)",
-    marginTop: "10px",   // ← 추가
+    color: "#ffd447",
+  },
+  
+  resultStageLabel: {
+    fontSize: "14px",
+    color: "#aaa",
+  },
+  
+  resultBestBox: {
+    marginBottom: "20px",
+  },
+  
+  resultBestValue: {
+    fontSize: "28px",
+    fontWeight: "bold",
+  },
+  
+  resultBestLabel: {
+    fontSize: "13px",
+    color: "#aaa",
+  },
+  resultWrap: {
+    textAlign: "center",
+    paddingTop: "18px",
+    minHeight: "720px",
+  },
+  resultCardWrap: {
+    display: "grid",
+    justifyContent: "center",
+    gap: "22px",
+    marginTop: "20px",
+    marginBottom: "20px",
+  },
+
+  resultTitle: {
+    fontSize: "38px",
+    color: "#f6c343",
+    fontWeight: "bold",
+  },
+
+  resultScore: {
+    fontSize: "72px",
+    fontWeight: "bold",
+    color: "#fff",
+    marginTop: "20px",
   },
 
   resultSub: {
     color: "#aaa",
-    fontSize: "14px",
-    marginBottom: "6px",
+    fontSize: "16px",
+    marginTop: "8px",
+  },
+  resultPrimaryBtn: {
+    width: "100%",
+    padding: "18px",
+    borderRadius: "20px",
+    background: "linear-gradient(180deg, #ffd84d, #f6c343)",
+    border: "none",
+    color: "#111",
+    fontSize: "20px",
+    fontWeight: "bold",
+    marginTop: "28px",
+  },
+  
+  resultSecondaryBtn: {
+    width: "100%",
+    padding: "16px",
+    borderRadius: "18px",
+    background: "linear-gradient(180deg, #263346, #101722)",
+    border: "1px solid rgba(255,255,255,0.16)",
+    color: "#fff",
+    fontSize: "16px",
+    fontWeight: "bold",
   },
 
-  restartBox: {
-    marginTop: "12px",
-    padding: "10px",
-    border: "1px solid #f6c343",
-    borderRadius: "8px",
-    color: "#f6c343",
-  },
   resultActionBox: {
     display: "flex",
     flexDirection: "column",
     gap: "10px",
-    marginTop: "16px",
-  },
-
-  resultButtonRow: {
-    display: "grid",
-    gridTemplateColumns: "1fr",
-    gap: "8px",        // ⭐ 부활 간격과 동일하게
-    marginTop: "8px",  // ⭐ 다음판과 동일하게
-  },
-
-  shareBtn: {
-    marginBottom: "10px",
-    width: "100%",
-    padding: "14px",
-    borderRadius: "10px",
-    background: "#222",
-    border: "1px solid #f6c343",
-    color: "#f6c343",
-    fontSize: "16px",
-    fontWeight: "bold",
-  },
-  subscribeBtn: {
-    width: "100%",
-    padding: "10px",          // ↓ 줄임
-    borderRadius: "12px",
-    border: "none",
-    background: "linear-gradient(180deg, #ffcc00 0%, #ff9900 100%)",
-    color: "#111",
-    fontWeight: "bold",
-    textAlign: "center",
-    boxShadow: "0 0 12px rgba(255, 200, 0, 0.5)", // ↓ 약하게
-  },
-  
-  subTitle: {
-    fontSize: "12px",
-    fontWeight: "bold",
-  },
-  
-  subPrice: {
-    fontSize: "16px",
-    fontWeight: "bold",
-    lineHeight: "1.2",
-  },
-  
-  subDesc: {
-    fontSize: "12px",
-    fontWeight: "600",
-    marginTop: "2px",
-    color: "#333",
+    marginTop: "30px",
   },
 
   nextBtn: {
@@ -2770,113 +2090,20 @@ const styles = {
     border: "none",
     color: "#fff",
     fontSize: "16px",
-  },
-
-  shareWrap: {
-    textAlign: "center",
-    paddingTop: "30px",
-  },
-
-  shareTitle: {
-    fontSize: "24px",
     fontWeight: "bold",
-    marginBottom: "16px",
   },
 
-  shareCard: {
-    width: "280px",
-margin: "0 auto",
-    padding: "22px",
-    borderRadius: "18px",
-    background: "linear-gradient(180deg, #1f2937 0%, #080b10 100%)",
-    marginBottom: "20px",
-  },
-
-  shareTier: {
-    fontSize: "28px",
-    fontWeight: "bold",
-    marginBottom: "12px",
-  },
-
-  shareHorse: {
-    marginBottom: "10px",
-    display: "flex",
-    justifyContent: "center",
-  },
-
-  shareNickname: {
-    fontSize: "18px",
-    color: "#ccc",
-    marginBottom: "8px",
-  },
-
-  shareBigMoney: {
-    fontSize: "28px",
+  shareBtn: {
+    width: "100%",
+    padding: "14px",
+    borderRadius: "10px",
+    background: "#222",
+    border: "1px solid #f6c343",
     color: "#f6c343",
+    fontSize: "16px",
     fontWeight: "bold",
-    marginBottom: "14px",
   },
 
-  shareStats: {
-    color: "#ddd",
-    lineHeight: "1.8",
-    fontSize: "15px",
-  },
-
-  shareFooter: {
-    marginTop: "16px",
-    color: "#777",
-    fontSize: "12px",
-  },
-
-  cardWinRateOverlay: {
-    position: "absolute",
-    top: "6px",
-    left: "6px",
-    zIndex: 5,
-    padding: "4px 8px",
-    borderRadius: "8px",
-    background: "rgba(0,0,0,0.75)",
-    color: "#4ddcff",
-    fontWeight: "bold",
-    fontSize: "15px",
-  },
-
-
-  cardOddsOverlay: {
-    position: "absolute",
-    top: "6px",
-    right: "6px",
-    zIndex: 5,
-    padding: "4px 8px",
-    borderRadius: "8px",
-    background: "rgba(0,0,0,0.75)",
-    color: "#f6c343",
-    fontWeight: "bold",
-    fontSize: "15px",
-  },
-  countdownOverlay: {
-    position: "absolute",
-    left: "50%",
-    top: "50%",
-    transform: "translate(-50%, -50%)",
-    zIndex: 20,
-    fontSize: "52px",
-    fontWeight: "bold",
-    color: "#f6c343",
-    textShadow: "0 0 18px rgba(246,195,67,0.9)",
-  },
-  finishFlag: {
-    position: "absolute",
-    right: "6px",
-    top: "50%",
-    transform: "translateY(-50%)",
-    fontSize: "11px",
-    fontWeight: "bold",
-    color: "#f6c343",
-    writingMode: "vertical-rl",
-    letterSpacing: "1px",
-  },
   popupDim: {
     position: "fixed",
     top: 0,
@@ -2891,7 +2118,7 @@ margin: "0 auto",
     zIndex: 999999,
     overflowY: "auto",
   },
-  
+
   popupBox: {
     width: "320px",
     padding: "18px",
@@ -2912,13 +2139,13 @@ margin: "0 auto",
     marginBottom: "14px",
     textAlign: "center",
   },
-  
+
   popupText: {
     fontSize: "15px",
     lineHeight: "1.8",
     color: "#ddd",
   },
-  
+
   popupBtn: {
     width: "100%",
     padding: "13px",
@@ -2930,6 +2157,7 @@ margin: "0 auto",
     fontSize: "15px",
     fontWeight: "bold",
   },
+
   settingRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -2937,7 +2165,34 @@ margin: "0 auto",
     marginTop: "12px",
     fontSize: "14px",
   },
-  
+
+  onBtn: {
+    background: "#28a745",
+    color: "#fff",
+    border: "none",
+    padding: "6px 12px",
+    borderRadius: "6px",
+    fontWeight: "bold",
+  },
+
+  offBtn: {
+    background: "#222",
+    color: "#fff",
+    border: "none",
+    padding: "6px 12px",
+    borderRadius: "6px",
+    fontWeight: "bold",
+  },
+
+  langBtn: {
+    background: "#222",
+    color: "#f6c343",
+    border: "1px solid #444",
+    padding: "6px 12px",
+    borderRadius: "6px",
+    fontWeight: "bold",
+  },
+
   popupCloseBtn: {
     width: "100%",
     marginTop: "16px",
@@ -2949,16 +2204,7 @@ margin: "0 auto",
     fontSize: "16px",
     fontWeight: "bold",
   },
-  changeCardBtn: {
-    flexShrink: 0,
-    border: "1px solid #444",
-    background: "#1a1a1a",
-    color: "#ff6b6b",
-    padding: "8px 12px",
-    borderRadius: "12px",
-    fontSize: "13px",
-    fontWeight: "bold",
-  },
+
   siteFooter: {
     marginTop: "80px",
     padding: "16px 12px",
@@ -2967,21 +2213,21 @@ margin: "0 auto",
     border: "1px solid #2f3a4a",
     textAlign: "center",
   },
-  
+
   footerTitle: {
     fontSize: "16px",
     fontWeight: "bold",
     color: "#f6c343",
     marginBottom: "8px",
   },
-  
+
   footerText: {
     fontSize: "12px",
     lineHeight: "1.6",
     color: "#bbb",
     marginBottom: "12px",
   },
-  
+
   footerLinks: {
     marginTop: "16px",
     display: "flex",
@@ -2989,7 +2235,7 @@ margin: "0 auto",
     gap: "8px",
     flexWrap: "wrap",
   },
-  
+
   footerLinkBtn: {
     marginTop: "4px",
     border: "1px solid #444",
@@ -3000,6 +2246,7 @@ margin: "0 auto",
     fontSize: "12px",
     fontWeight: "bold",
   },
+
   backBtn: {
     marginBottom: "18px",
     border: "1px solid #444",
@@ -3010,7 +2257,7 @@ margin: "0 auto",
     fontSize: "14px",
     fontWeight: "bold",
   },
-  
+
   infoPage: {
     padding: "18px",
     borderRadius: "16px",
@@ -3020,93 +2267,327 @@ margin: "0 auto",
     lineHeight: "1.7",
     fontSize: "14px",
   },
-  
+
   infoPageTitle: {
     color: "#f6c343",
     fontSize: "24px",
     marginBottom: "16px",
   },
-  installBtn: {
+
+  optionBtn: {
     width: "100%",
-    marginTop: "8px",
-    padding: "10px",
-    borderRadius: "12px",
-    border: "1px solid #f6c343",
-    background: "#1a1a1a",
-    color: "#f6c343",
+    padding: "16px",
+    borderRadius: "18px",
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "#1c2430",
+    color: "#fff",
+    fontSize: "20px",
     fontWeight: "bold",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
   },
-  tierUpBox: {
-    width: "320px",
-    padding: "22px",
-    borderRadius: "22px",
-    background: "linear-gradient(180deg, #202938 0%, #0d1118 100%)",
-    border: "2px solid #f6c343",
-    boxShadow: "0 0 24px rgba(246,195,67,0.65)",
+  questionWrap: {
     textAlign: "center",
+    marginTop: "18px",
+  },
+  
+  questionTimer: {
+    marginBottom: "10px",
+  },
+  
+  optionBox: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "14px",
+    justifyContent: "center",
+    marginTop: "26px",
+  },
+  gameArea: {
+    marginTop: "14px",
+    height: "180px",
+    borderRadius: "18px",
+    background: "#0b1018",
+    border: "1px solid #2f3a4a",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#aaa",
+    fontSize: "15px",
+  },
+
+  topBar: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "20px",
+  },
+  
+  topLeft: {
+    fontSize: "14px",
+    color: "#aaa",
+  },
+  
+  topRight: {
+    fontSize: "14px",
+    background: "#1a1a1a",
+    padding: "6px 12px",
+    borderRadius: "20px",
+    border: "1px solid #333",
+  },
+  mainTopBar: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: "18px",
+    marginBottom: "50px",
+  },
+  
+  brandBox: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+  },
+  
+  brandIcon: {
+    fontSize: "28px",
+  },
+  
+  brandText: {
+    fontSize: "15px",
+    fontWeight: "bold",
     color: "#fff",
   },
-  
-  tierUpTitle: {
-    fontSize: "28px",
-    fontWeight: "bold",
-    color: "#f6c343",
-    marginBottom: "18px",
-  },
-  
-  tierUpImages: {
+  topRightBtns: {
     display: "flex",
-    justifyContent: "center",
+    gap: "8px",
+  },
+  
+  circleBtn: {
+    width: "42px",
+    height: "42px",
+    borderRadius: "50%",
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "rgba(40,40,70,0.7)",
+    color: "#fff",
+    fontSize: "18px",
+  },
+  
+  settingCircleBtn: {
+    width: "42px",
+    height: "42px",
+    borderRadius: "50%",
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "rgba(40,40,70,0.7)",
+    color: "#fff",
+    fontSize: "20px",
+  },
+  mainHero: {
+    textAlign: "center",
+    marginTop: "40px",
+    marginBottom: "50px",
+  },
+  
+  mainBigTitle: {
+    fontSize: "64px",
+    fontWeight: "900",
+    color: "#fff",
+    lineHeight: "1",
+  },
+  
+  mainTitleNumber: {
+    color: "#ffd447",
+    fontSize: "100px",
+    marginRight: "6px",
+  },
+  
+  mainTitleText: {
+    fontSize: "42px",
+    fontWeight: "900",
+    color: "#fff",
+    marginTop: "6px",
+  },
+  
+  mainDescText: {
+    fontSize: "17px",
+    color: "#fff",
+    lineHeight: "1.6",
+    marginTop: "36px",
+  },
+  recordCard: {
+    marginTop: "28px",
+    padding: "28px 18px",
+    borderRadius: "22px",
+    background: "#151b24",
+    border: "1px solid #2f3a4a",
+    display: "flex",
     alignItems: "center",
-    gap: "14px",
-    marginBottom: "16px",
+    justifyContent: "center",
+    gap: "18px",
   },
   
-  tierUpItem: {
-    width: "100px",
-    fontSize: "13px",
+  recordIcon: {
+    fontSize: "56px",
+  },
+  
+  recordTextBox: {
+    textAlign: "left",
+    minWidth: "120px",
+  },
+  
+  recordLabel: {
+    fontSize: "18px",
+    color: "#fff",
+    marginBottom: "14px",
+  },
+  
+  recordValue: {
+    fontSize: "42px",
+    fontWeight: "bold",
+    color: "#ffd447",
+  },
+  
+  recordUnit: {
+    fontSize: "17px",
+    color: "#fff",
+  },
+  memoText: {
+    marginTop: "20px",
+    fontSize: "14px",
+    color: "#aaa",
+  },
+  successText: {
+    fontSize: "42px",   // 실패랑 동일
+    fontWeight: "900",
+    color: "#4cd964",
+    marginTop: "30px",
+    marginBottom: "16px", // 글씨 → 오리 간격
+    textShadow: "0 4px 12px rgba(76,217,100,0.4)",
+  },
+  
+  successEmoji: {
+    marginTop: "0px",
+    marginBottom: "0px",
+  },
+  
+  successBox: {
+    marginTop: "0px",   // 실패랑 동일
+    marginBottom: "20px",
+    padding: "18px",
+    borderRadius: "18px",
+    background: "#151b24",
+    border: "1px solid #2f3a4a",
+    fontSize: "26px",
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  resultHighlight: {
+    color: "#ffd447",
+    fontWeight: "bold",
+  },
+  resultInfoBox: {
+    marginTop: "0px",
+    marginBottom: "14px",
+    padding: "20px",
+    borderRadius: "18px",
+    background: "#151b24",
+    border: "1px solid #2f3a4a",
+  },
+  
+  resultInfoRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "6px 0",
+    fontSize: "18px",
+  },
+  resultSpacer: {
+    height: "90px",
+  },
+  resultSpacerSmall: {
+    height: "34px",
+  },
+  resultDuck: {
+    marginTop: "8px",
+    marginBottom: "0px",
+  },
+  
+  resultDivider: {
+    height: "1px",
+    background: "rgba(255,255,255,0.14)",
+    margin: "10px 0",
+  },
+  
+  reviewBtn: {
+    width: "100%",
+    padding: "16px",
+    borderRadius: "18px",
+    background: "#f5f5f5",
+    border: "1px solid rgba(255,255,255,0.16)",
+    color: "#111",
+    fontSize: "18px",
+    fontWeight: "bold",
+    marginBottom: "14px",
+  },
+  
+  resultButtonRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "12px",
+  },
+  
+  resultHalfBtnYellow: {
+    padding: "16px",
+    borderRadius: "18px",
+    background: "linear-gradient(180deg, #ffd84d, #f6c343)",
+    border: "none",
+    color: "#111",
+    fontSize: "18px",
     fontWeight: "bold",
   },
   
-  tierUpIcon: {
-    width: "72px",
-    height: "72px",
-    objectFit: "contain",
-    marginBottom: "6px",
-  },
-  
-  tierUpArrow: {
-    fontSize: "28px",
+  resultHalfBtnDark: {
+    padding: "16px",
+    borderRadius: "18px",
+    background: "#6f55d9",
+    border: "none",
+    color: "#fff",
+    fontSize: "18px",
     fontWeight: "bold",
-    color: "#f6c343",
+  },
+  memoBox: {
+    marginTop: "42px",
+    padding: "16px 22px",
+    borderRadius: "18px",
+    background: "rgba(255,255,255,0.08)",
+    color: "#fff",
+    fontSize: "20px",
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  questionTitle: {
+    display: "inline-block",
+    marginBottom: "14px",
+    padding: "8px 22px",
+    borderRadius: "18px",
+    background: "rgba(255,255,255,0.14)",
+    color: "#fff",
+    fontSize: "16px",
+    fontWeight: "900",
   },
   
-  tierUpText: {
-    fontSize: "15px",
-    color: "#ddd",
-    marginBottom: "16px",
+  questionText: {
+    fontSize: "22px",
+    marginBottom: "24px",
+    color: "#fff",
+    fontWeight: "900",
+    lineHeight: "1.5",
+    textAlign: "center",
   },
-
-}
-const styleTag = document.createElement("style")
-styleTag.innerHTML = `
-@keyframes pop {
-  0% { transform: scale(0.8); }
-  50% { transform: scale(1.15); }
-  100% { transform: scale(1); }
-}
-`
-document.head.appendChild(styleTag)
-
-function getFontSizeByLength(text, scale = 1) {
-  const len = text.length
-
-  let size = 14
-
-  if (len < 10) size = 32
-  else if (len < 15) size = 26
-  else if (len < 20) size = 22
-  else if (len < 25) size = 18
-
-  return size * scale + "px"
+  topBrand: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    fontSize: "14px",
+    color: "#aaa",
+    fontWeight: "bold",
+  },
 }
