@@ -2337,7 +2337,7 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: "18px",
+    marginTop: "10px",
     marginBottom: "34px",
   },
   
