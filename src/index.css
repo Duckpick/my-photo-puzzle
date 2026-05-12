@@ -109,3 +109,33 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+@keyframes snapBounce {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0 rgba(255, 210, 64, 0));
+  }
+
+  50% {
+    transform: scale(1.025);
+    filter: drop-shadow(0 0 16px rgba(255, 210, 64, 0.95));
+  }
+
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0 rgba(255, 210, 64, 0));
+  }
+}
+
+@keyframes completeFlash {
+  0% {
+    opacity: 0;
+  }
+
+  45% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}

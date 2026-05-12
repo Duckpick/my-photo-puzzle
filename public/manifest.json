@@ -1,11 +1,12 @@
 {
-  "id": "/memory-trap",
-  "name": "3 Second Memory Trap",
-  "short_name": "3s Trap",
-  "start_url": ".",
+  "id": "/my-photo-puzzle",
+  "name": "My Photo Puzzle",
+  "short_name": "PhotoPuzzle",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#050608",
-  "theme_color": "#050608",
+  "background_color": "#fffaf1",
+  "theme_color": "#fffaf1",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "/icon-192.png",
