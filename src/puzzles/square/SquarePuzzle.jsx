@@ -55,10 +55,20 @@ export default function SquarePuzzle({
       const playgroundWidth = 354
 const playgroundHeight = 520
 
-const isPortrait = height > width
+const imageRatio = height / width
 
-const maxImageWidth = isPortrait ? 350 : 330
-const maxImageHeight = isPortrait ? 430 : 350
+const isTallPortrait = imageRatio >= 1.35
+const isSquare = imageRatio >= 0.9 && imageRatio <= 1.1
+
+const maxImageWidth =
+  isTallPortrait ? 350 :
+  isSquare ? 300 :
+  330
+
+const maxImageHeight =
+  isTallPortrait ? 430 :
+  isSquare ? 300 :
+  350
 
       const ratio = Math.min(maxImageWidth / width, maxImageHeight / height, 1)
 

@@ -58,10 +58,20 @@ export default function ClassicPuzzle({
     const playgroundWidth = 354
     const playgroundHeight = 520
 
-    const isPortrait = height > width
+    const imageRatio = height / width
 
-const maxImageWidth = isPortrait ? 330 : 300
-const maxImageHeight = isPortrait ? 430 : 320
+const isTallPortrait = imageRatio >= 1.35
+const isSquare = imageRatio >= 0.9 && imageRatio <= 1.1
+
+const maxImageWidth =
+  isTallPortrait ? 310 :
+  isSquare ? 270 :
+  280
+
+const maxImageHeight =
+  isTallPortrait ? 410 :
+  isSquare ? 270 :
+  300
 
     const ratio = Math.min(
       maxImageWidth / width,
