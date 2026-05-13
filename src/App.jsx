@@ -25,6 +25,7 @@ PUZZLE_SETTING_KEY,
 import { loadJson, saveJson } from "./utils/storage"
 import { resizeImage } from "./utils/image"
 import { sharePuzzleImage, sharePuzzleLink } from "./utils/share"
+import { checkMonthlyCode } from "./utils/code"
 
 function getDefaultLanguage() {
   const saved = loadJson(SETTING_KEY)
@@ -47,6 +48,7 @@ export default function App() {
   const [installPrompt, setInstallPrompt] = useState(null)
   const [codeInput, setCodeInput] = useState("")
 const [codeMessage, setCodeMessage] = useState("")
+const [isAdFree, setIsAdFree] = useState(false)
 
   const [language, setLanguage] = useState(
     savedSetting.language ?? getDefaultLanguage()
@@ -533,12 +535,13 @@ onConfirm={goMainFromResult}
       onClick={() => {
         playClick()
 
-        const valid = false
+        const valid = checkMonthlyCode(codeInput)
 
         if (valid) {
-          setCodeMessage(t.codeSuccess)
-          return
-        }
+  setIsAdFree(true)
+  setCodeMessage(t.codeSuccess)
+  return
+}
 
         setCodeMessage(t.codeFail)
       }}
