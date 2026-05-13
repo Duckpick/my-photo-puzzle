@@ -58,8 +58,10 @@ export default function ClassicPuzzle({
     const playgroundWidth = 354
     const playgroundHeight = 520
 
-    const maxImageWidth = 300
-    const maxImageHeight = 320
+    const isPortrait = height > width
+
+const maxImageWidth = isPortrait ? 330 : 300
+const maxImageHeight = isPortrait ? 430 : 320
 
     const ratio = Math.min(
       maxImageWidth / width,
@@ -237,7 +239,7 @@ export default function ClassicPuzzle({
         draggingGroup,
         targetGroups,
         pieces,
-        snapDistance: 34,
+        snapDistance: 24,
       })
 
       if (!connection) return normalizeGroupZIndexes(prevGroups)
@@ -319,17 +321,17 @@ export default function ClassicPuzzle({
               const clipId = `classic-piece-${piece.id}`
 
               return (
-                <div
-                  key={piece.id}
-                  style={{
-                    ...styles.piece,
-                    width: `${piece.visualWidth}px`,
-                    height: `${piece.visualHeight}px`,
-                    left: `${pieceWorld.x - padding}px`,
-                    top: `${pieceWorld.y - padding}px`,
-                  }}
-                  onPointerDown={(e) => startDrag(e, piece)}
-                >
+  <div
+  key={piece.id}
+  style={{
+    ...styles.piece,
+    width: `${piece.visualWidth}px`,
+    height: `${piece.visualHeight}px`,
+    left: `${pieceWorld.x - padding}px`,
+    top: `${pieceWorld.y - padding}px`,
+  }}
+>
+                
                   <svg
                     width={piece.visualWidth}
                     height={piece.visualHeight}
@@ -354,6 +356,16 @@ export default function ClassicPuzzle({
 
                     <path d={path} style={styles.pieceStroke} />
                   </svg>
+                  <div
+  style={{
+    ...styles.pieceHitBox,
+    left: `${padding}px`,
+    top: `${padding}px`,
+    width: `${piece.width}px`,
+    height: `${piece.height}px`,
+  }}
+  onPointerDown={(e) => startDrag(e, piece)}
+/>
                 </div>
               )
             })}
@@ -404,17 +416,24 @@ const styles = {
   },
 
   piece: {
-    position: "absolute",
-    touchAction: "none",
-    overflow: "visible",
-  },
+  position: "absolute",
+  touchAction: "none",
+  overflow: "visible",
+  pointerEvents: "none",
+},
 
   pieceSvg: {
     display: "block",
     overflow: "visible",
     filter: "drop-shadow(0 2px 5px rgba(50,30,10,0.28))",
   },
-
+pieceHitBox: {
+  position: "absolute",
+  zIndex: 5,
+  pointerEvents: "auto",
+  touchAction: "none",
+  background: "transparent",
+},
   pieceStroke: {
     fill: "none",
     stroke: "rgba(70,45,22,0.68)",

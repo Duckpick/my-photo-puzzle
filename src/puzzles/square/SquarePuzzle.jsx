@@ -55,8 +55,10 @@ export default function SquarePuzzle({
       const playgroundWidth = 354
 const playgroundHeight = 520
 
-const maxImageWidth = 330
-const maxImageHeight = 350
+const isPortrait = height > width
+
+const maxImageWidth = isPortrait ? 350 : 330
+const maxImageHeight = isPortrait ? 430 : 350
 
       const ratio = Math.min(maxImageWidth / width, maxImageHeight / height, 1)
 
@@ -230,7 +232,7 @@ const maxImageHeight = 350
         draggingGroup,
         targetGroups,
         pieces,
-        snapDistance: 34,
+        snapDistance: 24,
       })
 
       if (!connection) return normalizeGroupZIndexes(prevGroups)
