@@ -45,6 +45,8 @@ export default function App() {
   const [screen, setScreen] = useState(SCREEN.MAIN)
   const [popup, setPopup] = useState(null)
   const [installPrompt, setInstallPrompt] = useState(null)
+  const [codeInput, setCodeInput] = useState("")
+const [codeMessage, setCodeMessage] = useState("")
 
   const [language, setLanguage] = useState(
     savedSetting.language ?? getDefaultLanguage()
@@ -495,20 +497,56 @@ onConfirm={goMainFromResult}
 
         {popup && (
           <Popup
-            title={popup === "rule" ? t.rule : t.setting}
+            title={   popup === "rule"     ? t.rule     : popup === "code"       ? t.codeInput       : t.setting }
             closeText={t.close}
             onClose={() => {
               playClick()
               setPopup(null)
             }}
           >
-            {popup === "rule" ? (
-              <>
-                {t.rules.map((rule) => (
-                  <div key={rule}>{rule}</div>
-                ))}
-              </>
-            ) : (
+{popup === "rule" ? (
+  <>
+    {t.rules.map((rule) => (
+      <div key={rule}>{rule}</div>
+    ))}
+  </>
+) : popup === "code" ? (
+  <>
+    <input
+      value={codeInput}
+      onChange={(e) => {
+        setCodeInput(e.target.value)
+        setCodeMessage("")
+      }}
+      placeholder={t.codePlaceholder}
+      style={styles.codeInput}
+    />
+
+    {codeMessage && (
+      <div style={styles.codeMessage}>
+        {codeMessage}
+      </div>
+    )}
+
+   <button
+  style={styles.codeConfirmBtn}
+      onClick={() => {
+        playClick()
+
+        const valid = false
+
+        if (valid) {
+          setCodeMessage(t.codeSuccess)
+          return
+        }
+
+        setCodeMessage(t.codeFail)
+      }}
+    >
+      {t.confirm}
+    </button>
+  </>
+) : (
               <>
                 <button
                   style={styles.popupBtn}
@@ -541,6 +579,18 @@ onConfirm={goMainFromResult}
                 >
                   {t.addHome}
                 </button>
+                
+                <button
+  style={styles.popupBtn}
+  onClick={() => {
+    playClick()
+    setCodeInput("")
+    setCodeMessage("")
+    setPopup("code")
+  }}
+>
+  {t.codeInput}
+</button>
 
                 <div style={styles.settingRow}>
                   {t.sound}
@@ -702,6 +752,39 @@ const styles = {
     fontSize: "15px",
     fontWeight: "bold",
   },
+  codeConfirmBtn: {
+  width: "100%",
+  padding: "13px",
+  marginBottom: "10px",
+  borderRadius: "12px",
+  border: "none",
+  background: "#2db94d",
+  color: "#fff",
+  fontSize: "15px",
+  fontWeight: "bold",
+},
+  codeInput: {
+  width: "100%",
+  height: "52px",
+  padding: "0 14px",
+  marginBottom: "10px",
+  borderRadius: "12px",
+  border: "1px solid #eadcc8",
+  background: "#fff",
+  color: "#2a1b10",
+  fontSize: "16px",
+  fontWeight: "800",
+  boxSizing: "border-box",
+  outline: "none",
+},
+
+codeMessage: {
+  marginBottom: "10px",
+  color: "#5b4636",
+  fontSize: "14px",
+  fontWeight: "800",
+  textAlign: "center",
+},
 
   settingRow: {
     display: "flex",
