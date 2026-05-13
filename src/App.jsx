@@ -387,7 +387,7 @@ const goMainFromResult = () => {
 
   return (
     <div style={styles.page}>
-      {!isMobile && <div style={styles.sideAd}>{t.ad}</div>}
+      
 
       <div style={{ ...styles.app, transform: `scale(${scale})` }}>
         {screen === SCREEN.MAIN && (
@@ -411,9 +411,7 @@ const goMainFromResult = () => {
   onSelectMultiple={handleSelectMultiple}
 />
 
-            <div style={{ marginBottom: "42px" }}>
-  <AdBox text={t.ad} />
-</div>
+            
 
 <Footer
               t={t}
@@ -651,7 +649,7 @@ onConfirm={goMainFromResult}
         )}
       </div>
 
-      {!isMobile && <div style={styles.sideAd}>{t.ad}</div>}
+      
     </div>
   )
 }
