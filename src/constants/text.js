@@ -25,8 +25,6 @@ export const TEXT = {
 
     setting: "설정",
 
-    ad: "광고 영역",
-
     privacy: "개인정보처리방침",
 
     contact: "문의",
@@ -169,10 +167,7 @@ linkShare: "링크공유",
 timeoutTitle: "⏰ 시간초과!",
 timeoutMessage: "다시 도전해 보세요",
 photoPuzzleShareMessage: "내 사진으로 퍼즐을 완성해보세요!",
-codeInput: "코드 입력",
-codePlaceholder: "코드를 입력하세요",
-codeSuccess: "코드가 적용되었습니다.",
-codeFail: "잘못된 코드입니다.",
+
   },
 
   en: {
@@ -198,8 +193,6 @@ codeFail: "잘못된 코드입니다.",
     rule: "Rules",
 
     setting: "Settings",
-
-    ad: "Ad Area",
 
     privacy: "Privacy Policy",
 
@@ -344,8 +337,4 @@ timeoutTitle: "⏰ Time Over!",
 timeoutMessage: "Try again.",
 photoPuzzleShareMessage: "Complete a puzzle with your own photo!",
   },
-  codeInput: "Enter Code",
-codePlaceholder: "Enter your code",
-codeSuccess: "Code applied.",
-codeFail: "Invalid code.",
 }
